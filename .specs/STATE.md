@@ -32,8 +32,11 @@
 
 ## Handoff
 
-**Status:** Planejamento inicial da v1 concluido.
-
-**Next:** Iniciar T01 de `.specs/features/cli-v1/tasks.md`, validando primeiro o contrato atual do backend e registrando gaps de autorizacao no repositorio `ActaskBack`.
-
-**Release target:** v1.0.0.
+- **Feature**: `.specs/features/cli-v1`
+- **Phase / Task**: Phase 1 / T02 - Close backend authorization gaps
+- **Completed**: T01
+- **In-progress** (file:line): `app/routes/projects.py:105` and `app/services/task_query.py:857` - implementing documented authorization gaps
+- **Next step**: Add the protected project detail route and make explicit inaccessible task queries return `403`, with direct API tests.
+- **Blockers**: none
+- **Uncommitted files**: `.specs/features/cli-v1/api-authorization-matrix.md`, `.specs/features/cli-v1/tasks.md`, `.specs/STATE.md`
+- **Branch**: `main`

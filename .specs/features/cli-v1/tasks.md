@@ -22,7 +22,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 
 ## Phase 1 - Security Contract
 
-### T01 - Inventory backend routes and authorization
+### T01 - Inventory backend routes and authorization [x]
 
 **Deliverable:** Matriz das rotas necessarias para a v1 com autenticacao, permissao, associacao ao projeto e respostas esperadas.
 **Repositories:** `ActaskCLI`, leitura de `ActaskBack`.
