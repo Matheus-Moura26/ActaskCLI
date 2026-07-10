@@ -10,9 +10,9 @@
 
 ## Verdict
 
-**Overall**: PASS for local release gates and AC-01..AC-07.  
-**Release status**: Ready to trigger tag/release workflow.  
-**Remaining condition**: AC-08 stays **PENDING** until the remote tag workflow runs on GitHub Actions, publishes the native artifacts, and publishes `SHA256SUMS`.
+**Overall**: PASS for all v1 acceptance criteria.  
+**Release status**: `v1.0.0` published privately.  
+**Remote evidence**: GitHub Actions run `29120601408` built and smoke-tested all supported binaries, then published `SHA256SUMS`.
 
 ---
 
@@ -46,9 +46,9 @@
 | AC-05 | Every read command has semantically equivalent human and JSON output. | `tests/unit/test_auth_commands.py:119-133` (`whoami`); `tests/unit/test_project_commands.py:64-83` (`projects list`); `tests/unit/test_project_commands.py:98-115` (`projects show`); `tests/unit/test_task_commands.py:80-126` (`tasks list`); `tests/unit/test_task_commands.py:149-167` (`tasks show`). | ✅ PASS |
 | AC-06 | Write `--dry-run` does not mutate the server and reports normalized payload. | `tests/unit/test_task_commands.py:273-306` asserts `tasks create --dry-run --json` returns the normalized payload and never mutates; `tests/unit/test_task_commands.py:309-350` asserts `tasks update --dry-run --json` returns the normalized payload and fails if a network client is constructed. Scratch sensor below also kills an update dry-run fault. | ✅ PASS |
 | AC-07 | The Skill completes read scenarios using only the CLI and stops safely on `401`, `403`, and destructive ambiguity. | `tests/skill/test_skill_forward_workflows.py:66-76` asserts CLI-only guidance and mandatory stops for `401`/`403`; `tests/skill/test_skill_forward_workflows.py:79-89` exercises `whoami --json`; `tests/skill/test_skill_forward_workflows.py:92-114` asserts dry-run-only write preview; `tests/skill/test_skill_forward_workflows.py:118-126` asserts forbidden read stops with exit code `4`; official validator returned `Skill is valid!`. | ✅ PASS |
-| AC-08 | Native release binaries smoke-test on supported platforms and publish checksums. | Workflow evidence exists in `.github/workflows/release.yml:5-107` for tag trigger, quality gate, Windows/Linux/macOS matrix, smoke script, and `SHA256SUMS`, but the remote tag workflow has not run yet in this verification pass. | ⏳ PENDING |
+| AC-08 | Native release binaries smoke-test on supported platforms and publish checksums. | GitHub Actions run `29120601408` completed successfully; release `v1.0.0` contains `actask-windows-x64.exe`, `actask-linux-x64`, `actask-macos-x64`, `actask-macos-arm64`, and `SHA256SUMS`. | ✅ PASS |
 
-**Status**: AC-01..AC-07 = **7/7 PASS**. AC-08 = **PENDING by design until remote workflow execution**.
+**Status**: AC-01..AC-08 = **8/8 PASS**.
 
 ---
 
@@ -123,12 +123,7 @@ Scratch state used a temporary detached `git worktree`; the real worktree was no
 - Direct backend authorization evidence for `200`, `401`, and `403`
 - Discrimination sensor for both requested risk areas
 
-**What remains external**:
-
-- AC-08 only: the tag-driven GitHub Actions workflow must still run remotely to produce and smoke-test Windows x64, Linux x64, macOS x64, and macOS arm64 binaries, then publish `SHA256SUMS`
-
 **Release conclusion**:
 
-- **Yes, the code is apt to trigger the release workflow now.**
-- **No local blocker remains for tagging.**
-- **Final release verification becomes complete only after AC-08 turns from `PENDING` to `PASS` with published artifacts/checksums.**
+- **The private `v1.0.0` release is complete.**
+- **All acceptance criteria are verified, including native binaries and checksums.**

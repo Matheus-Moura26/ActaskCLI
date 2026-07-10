@@ -48,10 +48,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Validation remediation complete; publication still pending orchestrator
+- **Phase / Task**: v1.0.0 released and verified
 - **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12, T13, T14
 - **In-progress** (file:line): none
-- **Next step**: Independent verifier reruns AC evidence with the new tests and direct-backend execution; AC-08 still depends on tag-driven native runners.
-- **Blockers**: GitHub Actions native runners and private GitHub Release cannot be verified or published locally.
-- **Uncommitted files**: `.specs/features/cli-v1/validation.md` (verifier report, pre-existing)
+- **Next step**: Begin the next approved feature.
+- **Blockers**: none.
+- **Uncommitted files**: none after recording the release evidence.
 - **Branch**: `main`
