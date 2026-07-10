@@ -66,7 +66,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** AC-01 e CLI-002 passam.
 **Commit:** `feat(auth): add secure credential profiles`
 
-### T06 - Implement typed HTTP client
+### T06 - Implement typed HTTP client [x]
 
 **Deliverable:** Cliente HTTPX com timeout, TLS, headers, erros tipados e request ID.
 **Depends on:** T05.

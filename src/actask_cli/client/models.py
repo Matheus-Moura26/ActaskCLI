@@ -1,0 +1,66 @@
+"""Typed models for responses used by the Actask CLI."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Mapping
+
+from actask_cli.client.errors import ServerError
+
+
+@dataclass(frozen=True)
+class User:
+    id: str
+    name: str
+    email: str
+    is_master: bool
+    is_active: bool
+    permissions: tuple[str, ...]
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object], request_id: str | None) -> User:
+        permissions = payload.get("permissions")
+        if not isinstance(permissions, list) or not all(
+            isinstance(item, str) for item in permissions
+        ):
+            raise ServerError(request_id=request_id)
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            name=_required_string(payload, "name", request_id),
+            email=_required_string(payload, "email", request_id),
+            is_master=_required_boolean(payload, "is_master", request_id),
+            is_active=_required_boolean(payload, "is_active", request_id),
+            permissions=tuple(permissions),
+        )
+
+
+@dataclass(frozen=True)
+class LoginResult:
+    session_token: str
+    user: User
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class IdentityResult:
+    user: User
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class LogoutResult:
+    request_id: str | None
+
+
+def _required_string(payload: Mapping[str, object], field: str, request_id: str | None) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str):
+        raise ServerError(request_id=request_id)
+    return value
+
+
+def _required_boolean(payload: Mapping[str, object], field: str, request_id: str | None) -> bool:
+    value = payload.get(field)
+    if not isinstance(value, bool):
+        raise ServerError(request_id=request_id)
+    return value
