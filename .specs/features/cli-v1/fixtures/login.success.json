@@ -1,0 +1,14 @@
+{
+  "session_token": "<redacted-session-token>",
+  "user": {
+    "id": "user-member",
+    "name": "Member User",
+    "email": "member@example.test",
+    "is_master": false,
+    "is_active": true,
+    "permissions": [],
+    "theme": "dark",
+    "avatar_url": null,
+    "created_at": "2026-01-01T00:00:00Z"
+  }
+}

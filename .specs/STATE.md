@@ -33,10 +33,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 1 / T03 - Define and verify API contracts
-- **Completed**: T01, T02
+- **Phase / Task**: Phase 1 complete
+- **Completed**: T01, T02, T03
 - **In-progress** (file:line): none
-- **Next step**: Define sanitised fixtures and contract tests for login, identity, projects, and tasks against the protected routes.
+- **Next step**: Hand off to T04; do not begin Phase 2 until explicitly requested.
 - **Blockers**: none
-- **Uncommitted files**: `.specs/features/cli-v1/api-authorization-matrix.md`, `.specs/features/cli-v1/tasks.md`, `.specs/STATE.md`
+- **Uncommitted files**: none
 - **Branch**: `main`

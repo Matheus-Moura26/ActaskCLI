@@ -1,0 +1,17 @@
+[
+  {
+    "id": "project-1",
+    "name": "Example Project",
+    "key": "EX",
+    "current_sprint": 1,
+    "sprint_started_at": "2026-01-01T00:00:00Z",
+    "sprint_auto_complete_type": "never",
+    "sprint_auto_complete_value": null,
+    "sprint_auto_complete_day": null,
+    "completion_column_id": null,
+    "require_cases": false,
+    "enable_cases": true,
+    "columns": [],
+    "created_at": "2026-01-01T00:00:00Z"
+  }
+]

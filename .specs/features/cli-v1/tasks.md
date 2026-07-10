@@ -40,7 +40,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** Suite do backend passa e chamadas diretas nao contornam autorizacao.
 **Commit:** Um commit atomico por gap no backend; um commit documental de sincronizacao na CLI.
 
-### T03 - Define and verify API contracts
+### T03 - Define and verify API contracts [x]
 
 **Deliverable:** Fixtures sanitizadas e testes de contrato para login, identidade, projetos e tasks.
 **Depends on:** T02.
