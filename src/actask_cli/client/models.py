@@ -87,6 +87,48 @@ class ProjectResult:
     request_id: str | None
 
 
+@dataclass(frozen=True)
+class Task:
+    """A task returned by the Actask API."""
+
+    id: str
+    key: str
+    title: str
+    project_id: str
+    payload: Mapping[str, object]
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object], request_id: str | None) -> Task:
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            key=_required_string(payload, "key", request_id),
+            title=_required_string(payload, "title", request_id),
+            project_id=_required_string(payload, "project_id", request_id),
+            payload=dict(payload),
+        )
+
+    def to_data(self) -> dict[str, object]:
+        """Return the API representation for the stable JSON output envelope."""
+        return dict(self.payload)
+
+
+@dataclass(frozen=True)
+class TaskListResult:
+    tasks: tuple[Task, ...]
+    total: int
+    page: int
+    page_size: int
+    query_text: str | None
+    applied_order: tuple[object, ...]
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class TaskResult:
+    task: Task
+    request_id: str | None
+
+
 def _required_string(payload: Mapping[str, object], field: str, request_id: str | None) -> str:
     value = payload.get(field)
     if not isinstance(value, str):

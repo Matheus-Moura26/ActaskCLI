@@ -26,6 +26,7 @@ USER = {
     "permissions": ["tasks.read"],
 }
 PROJECT = {"id": "project-1", "name": "Example Project", "key": "EX"}
+TASK = {"id": "task-1", "key": "EX-1", "title": "Example task", "project_id": "project-1"}
 
 
 def test_client_sends_login_body_and_typed_authenticated_requests() -> None:
@@ -142,3 +143,43 @@ def test_client_reads_projects_from_the_authorized_routes() -> None:
         ("GET", "/projects/project-1"),
     ]
     assert all(request.headers["X-Session-Token"] == SESSION_TOKEN for request in requests)
+
+
+def test_client_reads_tasks_from_the_authorized_routes() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/tasks/query":
+            return httpx.Response(
+                200,
+                headers={"X-Request-ID": "req-list"},
+                json={
+                    "items": [TASK],
+                    "total": 1,
+                    "page": 1,
+                    "page_size": 25,
+                    "query_text": None,
+                    "applied_order": [],
+                },
+            )
+        return httpx.Response(200, headers={"X-Request-ID": "req-show"}, json=TASK)
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        listed = client.list_tasks({"project_id": "project-1", "page": 1, "page_size": 25})
+        shown = client.show_task("task-1")
+
+    assert [task.to_data() for task in listed.tasks] == [TASK]
+    assert (listed.total, listed.page, listed.page_size) == (1, 1, 25)
+    assert shown.task.to_data() == TASK
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("POST", "/tasks/query"),
+        ("GET", "/tasks/task-1"),
+    ]
+    assert json.loads(requests[0].content) == {
+        "project_id": "project-1",
+        "page": 1,
+        "page_size": 25,
+    }

@@ -34,9 +34,9 @@
 
 - **Feature**: `.specs/features/cli-v1`
 - **Phase / Task**: Phase 3 in progress
-- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08
+- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09
 - **In-progress** (file:line): none
-- **Next step**: Continue with T09 after the T08 commit.
+- **Next step**: Continue with T10 after the T09 commit.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`

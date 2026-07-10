@@ -92,7 +92,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** CLI-011, CLI-012 e AC-05 passam.
 **Commit:** `feat(projects): add read commands`
 
-### T09 - Implement task read commands
+### T09 - Implement task read commands [x]
 
 **Deliverable:** `tasks list` e `tasks show`, com filtros e paginacao.
 **Depends on:** T08.

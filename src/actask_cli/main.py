@@ -5,6 +5,7 @@ import typer
 from actask_cli import __version__
 from actask_cli.commands.auth import app as auth_app
 from actask_cli.commands.projects import app as projects_app
+from actask_cli.commands.tasks import app as tasks_app
 from actask_cli.config.profiles import ProfileError, ProfileStore
 
 app = typer.Typer(
@@ -13,6 +14,7 @@ app = typer.Typer(
 )
 app.add_typer(auth_app)
 app.add_typer(projects_app, name="projects")
+app.add_typer(tasks_app, name="tasks")
 
 
 def _profile_store() -> ProfileStore:

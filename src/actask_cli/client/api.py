@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Self
+from typing import Mapping, Self
 from urllib.parse import urlsplit
 
 import httpx
@@ -24,6 +24,9 @@ from actask_cli.client.models import (
     Project,
     ProjectListResult,
     ProjectResult,
+    Task,
+    TaskListResult,
+    TaskResult,
     User,
 )
 
@@ -106,8 +109,36 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def list_tasks(self, payload: Mapping[str, object]) -> TaskListResult:
+        response = self._request("POST", "tasks/query", json_body=payload)
+        request_id = _request_id(response)
+        body = _payload(response)
+        items = body.get("items")
+        if not isinstance(items, list):
+            raise ServerError(request_id=request_id)
+        return TaskListResult(
+            tasks=tuple(
+                Task.from_payload(_required_mapping(item, request_id), request_id)
+                for item in items
+            ),
+            total=_required_integer(body, "total", request_id),
+            page=_required_integer(body, "page", request_id),
+            page_size=_required_integer(body, "page_size", request_id),
+            query_text=_optional_string(body, "query_text", request_id),
+            applied_order=_required_list(body, "applied_order", request_id),
+            request_id=request_id,
+        )
+
+    def show_task(self, task_id: str) -> TaskResult:
+        response = self._request("GET", f"tasks/{task_id}")
+        request_id = _request_id(response)
+        return TaskResult(
+            task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def _request(
-        self, method: str, path: str, json_body: dict[str, str] | None = None
+        self, method: str, path: str, json_body: Mapping[str, object] | None = None
     ) -> httpx.Response:
         try:
             response = self._client.request(method, path, json=json_body)
@@ -173,6 +204,31 @@ def _required_mapping(value: object, request_id: str | None) -> dict[str, object
     if not isinstance(value, dict):
         raise ServerError(request_id=request_id)
     return value
+
+
+def _required_integer(payload: Mapping[str, object], field: str, request_id: str | None) -> int:
+    value = payload.get(field)
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ServerError(request_id=request_id)
+    return value
+
+
+def _optional_string(
+    payload: Mapping[str, object], field: str, request_id: str | None
+) -> str | None:
+    value = payload.get(field)
+    if value is not None and not isinstance(value, str):
+        raise ServerError(request_id=request_id)
+    return value
+
+
+def _required_list(
+    payload: Mapping[str, object], field: str, request_id: str | None
+) -> tuple[object, ...]:
+    value = payload.get(field)
+    if not isinstance(value, list):
+        raise ServerError(request_id=request_id)
+    return tuple(value)
 
 
 def _required_session_token(payload: dict[str, object], request_id: str | None) -> str:
