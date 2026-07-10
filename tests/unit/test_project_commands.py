@@ -95,14 +95,20 @@ def test_projects_list_pages_the_server_authorized_projects(monkeypatch) -> None
     assert payload["meta"] == {"page": 2, "page_size": 1, "request_id": "req-projects", "total": 2}
 
 
-def test_projects_show_returns_backend_authorized_project_as_json(monkeypatch) -> None:
+def test_projects_show_has_equivalent_human_and_json_output(monkeypatch) -> None:
     credentials = FakeCredentialStore()
     _install_fakes(monkeypatch, FakeClient(), credentials)
 
-    result = runner.invoke(app, ["projects", "show", "project-1", "--json"])
+    human = runner.invoke(app, ["projects", "show", "project-1"])
+    json_result = runner.invoke(app, ["projects", "show", "project-1", "--json"])
+    payload = json.loads(json_result.output)
 
-    assert result.exit_code == 0
-    assert json.loads(result.output) == {
+    assert human.exit_code == 0
+    assert json_result.exit_code == 0
+    assert human.output == (
+        f"{payload['data']['key']}\t{payload['data']['name']}\t{payload['data']['id']}\n"
+    )
+    assert payload == {
         "data": PROJECT_ONE.to_data(),
         "error": None,
         "meta": {"request_id": "req-project"},

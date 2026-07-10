@@ -146,6 +146,27 @@ def test_tasks_show_rejects_foreign_task_with_forbidden_exit_code(monkeypatch) -
     assert result.stderr == "You do not have permission to perform this action.\n"
 
 
+def test_tasks_show_has_equivalent_human_and_json_output(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    human = runner.invoke(app, ["tasks", "show", "task-1"])
+    json_result = runner.invoke(app, ["tasks", "show", "task-1", "--json"])
+    payload = json.loads(json_result.output)
+
+    assert human.exit_code == 0
+    assert json_result.exit_code == 0
+    assert human.output == (
+        f"{payload['data']['key']}\t{payload['data']['title']}"
+        f"\t{payload['data']['project_id']}\t{payload['data']['id']}\n"
+    )
+    assert payload == {
+        "data": TASK.to_data(),
+        "error": None,
+        "meta": {"request_id": "req-task"},
+    }
+
+
 def test_tasks_list_rejects_invalid_filter_before_request(monkeypatch) -> None:
     client = FakeClient()
     _install_fakes(monkeypatch, client)
@@ -283,3 +304,52 @@ def test_tasks_create_dry_run_does_not_connect_and_shows_normalized_json(monkeyp
         "meta": {"dry_run": True},
     }
     assert client.payload is None
+
+
+def test_tasks_update_dry_run_does_not_create_a_client_and_shows_normalized_json(
+    monkeypatch,
+) -> None:
+    def unexpected_network(*args: object, **kwargs: object) -> object:
+        raise AssertionError("dry-run must not construct a network client")
+
+    monkeypatch.setattr(tasks, "_client", unexpected_network)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "update",
+            "task-1",
+            "--title",
+            "Updated title",
+            "--description",
+            "Updated details",
+            "--sprint",
+            "3",
+            "--column-id",
+            "column-2",
+            "--assignee-id",
+            "user-2",
+            "--priority",
+            "high",
+            "--issue-type",
+            "bug",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "data": {
+            "title": "Updated title",
+            "description": "Updated details",
+            "sprint": 3,
+            "column_id": "column-2",
+            "assignee_id": "user-2",
+            "priority": "high",
+            "type": "bug",
+        },
+        "error": None,
+        "meta": {"dry_run": True},
+    }

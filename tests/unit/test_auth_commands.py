@@ -116,16 +116,21 @@ def test_login_hides_password_and_stores_session(monkeypatch) -> None:
     assert SESSION_TOKEN not in result.stderr
 
 
-def test_whoami_validates_session_and_shows_identity(monkeypatch) -> None:
+def test_whoami_has_equivalent_human_and_json_output(monkeypatch) -> None:
     profiles = FakeProfileStore(PROFILE)
     credentials = FakeCredentialStore(SESSION_TOKEN)
     client = FakeClient(identity_result=IdentityResult(USER, "req-whoami"))
     _install_fakes(monkeypatch, profiles, credentials, client)
 
-    result = runner.invoke(app, ["whoami"])
+    human = runner.invoke(app, ["whoami"])
+    json_result = runner.invoke(app, ["whoami", "--json"])
+    payload = json.loads(json_result.output)
 
-    assert result.exit_code == 0
-    assert result.output == "Member User <member@example.test>\n"
+    assert human.exit_code == 0
+    assert json_result.exit_code == 0
+    assert human.output == f"{payload['data']['name']} <{payload['data']['email']}>\n"
+    assert payload["meta"] == {"request_id": "req-whoami"}
+    assert payload["error"] is None
 
 
 def test_whoami_json_uses_the_stable_envelope(monkeypatch) -> None:
