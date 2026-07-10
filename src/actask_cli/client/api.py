@@ -22,6 +22,7 @@ from actask_cli.client.models import (
     LoginResult,
     LogoutResult,
     Project,
+    ProjectCatalogResult,
     ProjectListResult,
     ProjectResult,
     Task,
@@ -109,6 +110,12 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def list_project_columns(self, project_id: str) -> ProjectCatalogResult:
+        return self._project_catalog(f"projects/{project_id}/columns")
+
+    def list_project_field_registry(self, project_id: str) -> ProjectCatalogResult:
+        return self._project_catalog(f"projects/{project_id}/task-fields/registry")
+
     def list_tasks(self, payload: Mapping[str, object]) -> TaskListResult:
         response = self._request("POST", "tasks/query", json_body=payload)
         request_id = _request_id(response)
@@ -150,6 +157,16 @@ class ActaskApiClient:
         request_id = _request_id(response)
         return TaskResult(
             task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
+    def _project_catalog(self, path: str) -> ProjectCatalogResult:
+        response = self._request("GET", path)
+        request_id = _request_id(response)
+        return ProjectCatalogResult(
+            entries=tuple(
+                dict(_required_mapping(item, request_id)) for item in _payload_list(response)
+            ),
             request_id=request_id,
         )
 

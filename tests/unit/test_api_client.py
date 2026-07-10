@@ -145,6 +145,29 @@ def test_client_reads_projects_from_the_authorized_routes() -> None:
     assert all(request.headers["X-Session-Token"] == SESSION_TOKEN for request in requests)
 
 
+def test_client_reads_project_columns_and_field_registry() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/projects/project-1/columns":
+            return httpx.Response(200, json=[{"id": "column-pending", "name": "Pendentes"}])
+        return httpx.Response(200, json=[{"key": "status", "options": []}])
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        columns = client.list_project_columns("project-1")
+        fields = client.list_project_field_registry("project-1")
+
+    assert columns.entries == ({"id": "column-pending", "name": "Pendentes"},)
+    assert fields.entries == ({"key": "status", "options": []},)
+    assert [request.url.path for request in requests] == [
+        "/projects/project-1/columns",
+        "/projects/project-1/task-fields/registry",
+    ]
+
+
 def test_client_reads_tasks_from_the_authorized_routes() -> None:
     requests: list[httpx.Request] = []
 

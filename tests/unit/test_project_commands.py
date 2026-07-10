@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typer.testing import CliRunner
 
 from actask_cli.client.errors import ForbiddenError
-from actask_cli.client.models import Project, ProjectListResult, ProjectResult
+from actask_cli.client.models import Project, ProjectCatalogResult, ProjectListResult, ProjectResult
 from actask_cli.commands import projects
 from actask_cli.config.profiles import ServerProfile
 from actask_cli.main import app
@@ -53,6 +53,28 @@ class FakeClient:
         if self.forbidden:
             raise ForbiddenError("req-forbidden")
         return ProjectResult(PROJECT_ONE, "req-project")
+
+    def list_project_columns(self, project_id: str) -> ProjectCatalogResult:
+        if self.forbidden:
+            raise ForbiddenError("req-forbidden")
+        return ProjectCatalogResult(
+            entries=({"id": "column-pending", "name": "Pendentes"},),
+            request_id="req-columns",
+        )
+
+    def list_project_field_registry(self, project_id: str) -> ProjectCatalogResult:
+        if self.forbidden:
+            raise ForbiddenError("req-forbidden")
+        return ProjectCatalogResult(
+            entries=(
+                {
+                    "key": "status",
+                    "label": "Status",
+                    "options": [{"value": "column-pending", "label": "Pendentes"}],
+                },
+            ),
+            request_id="req-fields",
+        )
 
 
 def _install_fakes(monkeypatch, client: FakeClient, credentials: FakeCredentialStore) -> None:
@@ -120,6 +142,35 @@ def test_projects_show_preserves_forbidden_response(monkeypatch) -> None:
     _install_fakes(monkeypatch, FakeClient(forbidden=True), credentials)
 
     result = runner.invoke(app, ["projects", "show", "project-other"])
+
+    assert result.exit_code == 4
+    assert result.stderr == "You do not have permission to perform this action.\n"
+
+
+def test_projects_columns_and_fields_expose_project_configuration(monkeypatch) -> None:
+    credentials = FakeCredentialStore()
+    _install_fakes(monkeypatch, FakeClient(), credentials)
+
+    columns = runner.invoke(app, ["projects", "columns", "project-1", "--json"])
+    fields = runner.invoke(app, ["projects", "fields", "project-1", "--json"])
+
+    assert columns.exit_code == 0
+    assert json.loads(columns.output) == {
+        "data": [{"id": "column-pending", "name": "Pendentes"}],
+        "error": None,
+        "meta": {"request_id": "req-columns"},
+    }
+    assert fields.exit_code == 0
+    assert json.loads(fields.output)["data"][0]["options"] == [
+        {"label": "Pendentes", "value": "column-pending"}
+    ]
+
+
+def test_projects_catalog_preserves_forbidden_response(monkeypatch) -> None:
+    credentials = FakeCredentialStore()
+    _install_fakes(monkeypatch, FakeClient(forbidden=True), credentials)
+
+    result = runner.invoke(app, ["projects", "columns", "project-other", "--json"])
 
     assert result.exit_code == 4
     assert result.stderr == "You do not have permission to perform this action.\n"

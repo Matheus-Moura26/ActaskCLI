@@ -26,6 +26,18 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 4. Run `actask tasks show <task-id> --json` to inspect one task.
 5. Summarize only returned data. Do not infer access to projects or tasks that are not returned.
 
+## Ambiguous Counts And Lists
+
+1. Treat terms such as "pendentes", "abertas", "em andamento" and "status" as ambiguous unless the user identifies a column or a configured field option.
+2. Discover the real project configuration with `actask projects columns <project-id> --json` and `actask projects fields <project-id> --json`.
+3. When more than one real interpretation matches, present the matching project column names and configured Status options, then ask the user which one to use. Do not invent `todo`, `in_progress`, or any other value.
+4. When the user says "na coluna X", resolve X to one exact project column and query with `--filter column:=:<column-id>`.
+5. When the user says "com Status X", resolve X to one exact configured Status option and query with `--filter status:=:<option-value>`.
+6. For a count, use `meta.total` from the filtered backend query. Never derive a total from `data.length`.
+7. For a list or analysis of every matching task, paginate until collected items equal `meta.total`. If a page fails, report a partial result and do not use words such as "total", "only" or "all".
+8. Keep `column`, `status`, and `statusCategory` distinct. Only use a status category when the user explicitly asks for that field.
+9. Stop on `401` or `403`; do not use list data as a fallback for a denied detail request.
+
 ## Write Workflow
 
 1. Read the relevant project and task state first.

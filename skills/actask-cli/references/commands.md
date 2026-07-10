@@ -36,6 +36,13 @@ actask projects show <project-id> --json
 
 The list includes only backend-authorized projects. Project list pagination is local display pagination because the current backend route returns the authorized list without page parameters.
 
+```text
+actask projects columns <project-id> --json
+actask projects fields <project-id> --json
+```
+
+Use `columns` to resolve a visual board-column name to its ID. Use `fields` to discover the actual configured Status field options and supported filters for that project.
+
 ## Tasks
 
 ```text
@@ -44,6 +51,10 @@ actask tasks show <task-id> --json
 ```
 
 Use filters exactly as `field:operator:value`. A `403` means access was denied; do not interpret it as an empty result.
+
+For an exact board column, use `--filter column:=:<column-id>`. For an exact configured Status option, use `--filter status:=:<option-value>`. Do not assume that column names, Status options, and `statusCategory` mean the same thing.
+
+For counts, request a filtered page and read `meta.total`; `data.length` is only the current page. For a complete list, request subsequent pages until the collected count reaches `meta.total`.
 
 ## Safe writes
 

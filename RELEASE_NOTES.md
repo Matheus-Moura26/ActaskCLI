@@ -1,3 +1,16 @@
+# Actask CLI v1.0.2
+
+## Alteracoes
+
+- Adicionados `actask projects columns` e `actask projects fields` para descoberta segura da configuracao real de cada projeto.
+- A Skill agora desambigua termos como "pendentes" entre coluna e Status configurado, e usa `meta.total` para contagens completas.
+
+## Atualizacao
+
+Instale ou atualize pela tag `v1.0.2`.
+
+---
+
 # Actask CLI v1.0.1
 
 ## Alteracoes

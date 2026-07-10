@@ -73,6 +73,10 @@ def test_skill_documents_cli_only_and_required_stops() -> None:
     assert "Exit code `4` / `403`: stop." in skill
     assert "--dry-run" in skill
     assert "actask whoami --json" in reference
+    assert "Treat terms such as \"pendentes\"" in skill
+    assert "meta.total" in skill
+    assert "actask projects columns <project-id> --json" in skill
+    assert "--filter column:=:<column-id>" in reference
     assert "<redacted-session-token>" not in skill + reference
 
 

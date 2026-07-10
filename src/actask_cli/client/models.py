@@ -88,6 +88,14 @@ class ProjectResult:
 
 
 @dataclass(frozen=True)
+class ProjectCatalogResult:
+    """Project-scoped API metadata such as columns and field registry entries."""
+
+    entries: tuple[Mapping[str, object], ...]
+    request_id: str | None
+
+
+@dataclass(frozen=True)
 class Task:
     """A task returned by the Actask API."""
 
