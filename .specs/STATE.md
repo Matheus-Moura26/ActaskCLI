@@ -33,10 +33,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 1 / T02 - Close backend authorization gaps
-- **Completed**: T01
-- **In-progress** (file:line): `app/routes/projects.py:105` and `app/services/task_query.py:857` - implementing documented authorization gaps
-- **Next step**: Add the protected project detail route and make explicit inaccessible task queries return `403`, with direct API tests.
+- **Phase / Task**: Phase 1 / T03 - Define and verify API contracts
+- **Completed**: T01, T02
+- **In-progress** (file:line): none
+- **Next step**: Define sanitised fixtures and contract tests for login, identity, projects, and tasks against the protected routes.
 - **Blockers**: none
 - **Uncommitted files**: `.specs/features/cli-v1/api-authorization-matrix.md`, `.specs/features/cli-v1/tasks.md`, `.specs/STATE.md`
 - **Branch**: `main`

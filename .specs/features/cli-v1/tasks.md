@@ -31,7 +31,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** Toda rota de CLI-001 a CLI-016 possui classificacao; gaps viram tarefas no backend.
 **Commit:** `docs: map v1 API authorization contract`
 
-### T02 - Close backend authorization gaps
+### T02 - Close backend authorization gaps [x]
 
 **Deliverable:** Correcoes minimas no `ActaskBack` para garantir `401`, `403` e filtro por projeto em todas as rotas da v1.
 **Repositories:** `ActaskBack`; atualizar referencias no `ActaskCLI`.
