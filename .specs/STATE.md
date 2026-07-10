@@ -39,10 +39,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 4 complete
-- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12
+- **Phase / Task**: Phase 5 / T13 complete
+- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12, T13
 - **In-progress** (file:line): none
-- **Next step**: Hand off to Phase 5 / T13. Do not begin it until explicitly requested.
+- **Next step**: Execute T14: document installation and prepare v1.0.0 release notes.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`

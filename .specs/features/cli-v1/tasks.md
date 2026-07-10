@@ -128,7 +128,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 
 ## Phase 5 - Distribution
 
-### T13 - Build multiplatform binaries
+### T13 - Build multiplatform binaries [x]
 
 **Deliverable:** Pipeline para Windows x64, Linux x64, macOS x64/arm64 e checksums SHA-256.
 **Depends on:** T10, T12.
