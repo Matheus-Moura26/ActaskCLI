@@ -74,7 +74,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** Codigos de saida do spec sao preservados.
 **Commit:** `feat(client): add typed Actask API client`
 
-### T07 - Implement authentication commands
+### T07 - Implement authentication commands [x]
 
 **Deliverable:** `login`, `logout` e `whoami`.
 **Depends on:** T06.

@@ -33,10 +33,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 2 in progress
-- **Completed**: T01, T02, T03, T04, T05, T06
+- **Phase / Task**: Phase 2 complete
+- **Completed**: T01, T02, T03, T04, T05, T06, T07
 - **In-progress** (file:line): none
-- **Next step**: T07 - Implement authentication commands.
+- **Next step**: Hand off to T08; do not begin Phase 3 until explicitly requested.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`
