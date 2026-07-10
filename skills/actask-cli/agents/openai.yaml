@@ -1,4 +1,4 @@
 interface:
   display_name: "Actask CLI"
-  short_description: "Use Actask safely from terminal"
-  default_prompt: "Use $actask-cli to inspect Actask tasks safely."
+  short_description: "Operate Actask from a globally installed CLI"
+  default_prompt: "Use $actask-cli after confirming actask is installed globally."
