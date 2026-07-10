@@ -183,3 +183,30 @@ def test_client_reads_tasks_from_the_authorized_routes() -> None:
         "page": 1,
         "page_size": 25,
     }
+
+
+def test_client_writes_tasks_to_the_authorized_routes() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, headers={"X-Request-ID": "req-write"}, json=TASK)
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        created = client.create_task({"project_id": "project-1", "title": "Example", "sprint": 1})
+        updated = client.update_task("task-1", {"title": "Updated"})
+
+    assert created.task.to_data() == TASK
+    assert updated.task.to_data() == TASK
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("POST", "/tasks"),
+        ("PUT", "/tasks/task-1"),
+    ]
+    assert json.loads(requests[0].content) == {
+        "project_id": "project-1",
+        "title": "Example",
+        "sprint": 1,
+    }
+    assert json.loads(requests[1].content) == {"title": "Updated"}

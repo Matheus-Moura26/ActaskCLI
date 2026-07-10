@@ -86,11 +86,177 @@ def show_task(
     typer.echo(f"{result.task.key}\t{result.task.title}\t{result.task.project_id}\t{result.task.id}")
 
 
+@app.command("create")
+def create_task(
+    project_id: str = typer.Option(..., "--project", help="Project ID for the new task."),
+    title: str = typer.Option(..., help="Task title."),
+    sprint: int = typer.Option(..., min=0, help="Sprint number."),
+    description: str = typer.Option("", help="Task description."),
+    column_id: str | None = typer.Option(None, help="Initial column ID."),
+    assignee_id: str | None = typer.Option(None, help="Assignee user ID."),
+    priority: str = typer.Option("normal", help="Task priority."),
+    issue_type: str = typer.Option("task", "--issue-type", help="Task issue type."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the normalized payload only."),
+    yes: bool = typer.Option(False, "--yes", help="Confirm the change without a prompt."),
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
+    """Create a task after explicit confirmation, unless dry-running."""
+
+    payload = _create_payload(
+        project_id,
+        title,
+        sprint,
+        description,
+        column_id,
+        assignee_id,
+        priority,
+        issue_type,
+    )
+    if dry_run:
+        _write_dry_run(payload, json_output)
+        return
+    if not _confirm("Create this task?", yes):
+        _write_cancelled(json_output)
+        return
+
+    profile, session_token = _active_session()
+    credentials = CredentialStore()
+    try:
+        with _client(profile.server_url, session_token) as client:
+            result = client.create_task(payload)
+    except UnauthenticatedError as error:
+        _delete_after_unauthenticated(credentials, profile)
+        _exit_api_error(error)
+    except ApiError as error:
+        _exit_api_error(error)
+    _write_task_result(result.task, result.request_id, json_output)
+
+
+@app.command("update")
+def update_task(
+    task_id: str,
+    title: str | None = typer.Option(None, help="New task title."),
+    description: str | None = typer.Option(None, help="New task description."),
+    sprint: int | None = typer.Option(None, min=0, help="New sprint number."),
+    column_id: str | None = typer.Option(None, help="New column ID."),
+    assignee_id: str | None = typer.Option(None, help="New assignee user ID."),
+    priority: str | None = typer.Option(None, help="New task priority."),
+    issue_type: str | None = typer.Option(None, "--issue-type", help="New issue type."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the normalized payload only."),
+    yes: bool = typer.Option(False, "--yes", help="Confirm the change without a prompt."),
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
+    """Update one task after explicit confirmation, unless dry-running."""
+
+    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    payload = _update_payload(
+        title, description, sprint, column_id, assignee_id, priority, issue_type
+    )
+    if dry_run:
+        _write_dry_run(payload, json_output)
+        return
+    if not _confirm("Update this task?", yes):
+        _write_cancelled(json_output)
+        return
+
+    profile, session_token = _active_session()
+    credentials = CredentialStore()
+    try:
+        with _client(profile.server_url, session_token) as client:
+            result = client.update_task(normalized_task_id, payload)
+    except UnauthenticatedError as error:
+        _delete_after_unauthenticated(credentials, profile)
+        _exit_api_error(error)
+    except ApiError as error:
+        _exit_api_error(error)
+    _write_task_result(result.task, result.request_id, json_output)
+
+
 def _parse_filter(value: str) -> dict[str, str]:
     parts = value.split(":", maxsplit=2)
     if len(parts) != 3 or not all(part.strip() for part in parts):
         _exit("Filters must use field:operator:value.", ExitCode.INVALID_INPUT)
     return {"field_key": parts[0], "operator": parts[1], "value": parts[2]}
+
+
+def _create_payload(
+    project_id: str,
+    title: str,
+    sprint: int,
+    description: str,
+    column_id: str | None,
+    assignee_id: str | None,
+    priority: str,
+    issue_type: str,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "project_id": _require_non_empty(project_id, "A project ID is required."),
+        "title": _require_non_empty(title, "A task title is required."),
+        "sprint": sprint,
+        "description": description,
+        "priority": _require_non_empty(priority, "A task priority is required."),
+        "type": _require_non_empty(issue_type, "An issue type is required."),
+    }
+    if column_id is not None:
+        payload["column_id"] = _require_non_empty(column_id, "A column ID cannot be empty.")
+    if assignee_id is not None:
+        payload["assignee_id"] = _require_non_empty(assignee_id, "An assignee ID cannot be empty.")
+    return payload
+
+
+def _update_payload(
+    title: str | None,
+    description: str | None,
+    sprint: int | None,
+    column_id: str | None,
+    assignee_id: str | None,
+    priority: str | None,
+    issue_type: str | None,
+) -> dict[str, object]:
+    optional_fields = {
+        "title": title,
+        "description": description,
+        "sprint": sprint,
+        "column_id": column_id,
+        "assignee_id": assignee_id,
+        "priority": priority,
+        "type": issue_type,
+    }
+    payload: dict[str, object] = {
+        key: value for key, value in optional_fields.items() if value is not None
+    }
+    if not payload:
+        _exit("Provide at least one task field to update.", ExitCode.INVALID_INPUT)
+    for field_name in ("title", "column_id", "assignee_id", "priority", "type"):
+        value = payload.get(field_name)
+        if isinstance(value, str) and not value.strip():
+            _exit(f"{field_name} cannot be empty.", ExitCode.INVALID_INPUT)
+    return payload
+
+
+def _confirm(message: str, yes: bool) -> bool:
+    return yes or typer.confirm(message)
+
+
+def _write_dry_run(payload: dict[str, object], json_output: bool) -> None:
+    if json_output:
+        _write_json(payload, {"dry_run": True})
+        return
+    typer.echo(f"Dry run: {payload}")
+
+
+def _write_cancelled(json_output: bool) -> None:
+    if json_output:
+        _write_json(None, {"cancelled": True})
+        return
+    typer.echo("Cancelled.")
+
+
+def _write_task_result(task: Task, request_id: str | None, json_output: bool) -> None:
+    if json_output:
+        _write_json(task.to_data(), {"request_id": request_id})
+        return
+    typer.echo(f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}")
 
 
 def _require_non_empty(value: str, message: str) -> str:

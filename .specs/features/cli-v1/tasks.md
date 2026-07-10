@@ -100,7 +100,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** CLI-013, CLI-014, AC-02, AC-03 e AC-05 passam.
 **Commit:** `feat(tasks): add read commands`
 
-### T10 - Implement task write commands
+### T10 - Implement task write commands [x]
 
 **Deliverable:** `tasks create` e `tasks update` com validacao, confirmacao e `--dry-run`.
 **Depends on:** T09.

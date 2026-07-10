@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from typer.testing import CliRunner
 
-from actask_cli.client.errors import ForbiddenError
+from actask_cli.client.errors import ConflictError, ForbiddenError
 from actask_cli.client.models import Task, TaskListResult, TaskResult
 from actask_cli.commands import tasks
 from actask_cli.config.profiles import ServerProfile
@@ -37,6 +37,7 @@ class FakeClient:
     payload: dict[str, object] | None = None
     foreign_project: bool = False
     foreign_task: bool = False
+    conflict: bool = False
     payloads: list[dict[str, object]] = field(default_factory=list)
 
     def __enter__(self) -> FakeClient:
@@ -56,6 +57,18 @@ class FakeClient:
         if self.foreign_task:
             raise ForbiddenError("req-foreign-task")
         return TaskResult(TASK, "req-task")
+
+    def create_task(self, payload: dict[str, object]) -> TaskResult:
+        self.payload = payload
+        if self.foreign_project:
+            raise ForbiddenError("req-foreign-project")
+        return TaskResult(TASK, "req-create")
+
+    def update_task(self, task_id: str, payload: dict[str, object]) -> TaskResult:
+        self.payload = payload
+        if self.conflict:
+            raise ConflictError("req-conflict")
+        return TaskResult(TASK, "req-update")
 
 
 def _install_fakes(monkeypatch, client: FakeClient) -> None:
@@ -144,4 +157,129 @@ def test_tasks_list_rejects_invalid_filter_before_request(monkeypatch) -> None:
 
     assert result.exit_code == 2
     assert result.stderr == "Filters must use field:operator:value.\n"
+    assert client.payload is None
+
+
+def test_tasks_create_sends_normalized_payload_after_confirmation(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example",
+            "--sprint",
+            "1",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert client.payload == {
+        "project_id": "project-1",
+        "title": "Example",
+        "sprint": 1,
+        "description": "",
+        "priority": "normal",
+        "type": "task",
+    }
+    assert result.output == "EX-1\tExample task\tproject-1\ttask-1\n"
+
+
+def test_tasks_create_rejects_invalid_input_without_request(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        ["tasks", "create", "--project", "project-1", "--title", "   ", "--sprint", "1", "--yes"],
+    )
+
+    assert result.exit_code == 2
+    assert result.stderr == "A task title is required.\n"
+    assert client.payload is None
+
+
+def test_tasks_create_preserves_forbidden_response(monkeypatch) -> None:
+    client = FakeClient(foreign_project=True)
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-foreign",
+            "--title",
+            "Example",
+            "--sprint",
+            "1",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 4
+    assert result.stderr == "You do not have permission to perform this action.\n"
+
+
+def test_tasks_update_preserves_conflict_response(monkeypatch) -> None:
+    client = FakeClient(conflict=True)
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "update", "task-1", "--title", "Updated", "--yes"])
+
+    assert result.exit_code == 6
+    assert result.stderr == "Request conflicts with current Actask state.\n"
+
+
+def test_tasks_update_cancellation_does_not_mutate(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "update", "task-1", "--title", "Updated"], input="n\n")
+
+    assert result.exit_code == 0
+    assert result.output == "Update this task? [y/N]: n\nCancelled.\n"
+    assert client.payload is None
+
+
+def test_tasks_create_dry_run_does_not_connect_and_shows_normalized_json(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example",
+            "--sprint",
+            "1",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "data": {
+            "project_id": "project-1",
+            "title": "Example",
+            "sprint": 1,
+            "description": "",
+            "priority": "normal",
+            "type": "task",
+        },
+        "error": None,
+        "meta": {"dry_run": True},
+    }
     assert client.payload is None

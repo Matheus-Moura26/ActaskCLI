@@ -137,6 +137,22 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def create_task(self, payload: Mapping[str, object]) -> TaskResult:
+        response = self._request("POST", "tasks", json_body=payload)
+        request_id = _request_id(response)
+        return TaskResult(
+            task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
+    def update_task(self, task_id: str, payload: Mapping[str, object]) -> TaskResult:
+        response = self._request("PUT", f"tasks/{task_id}", json_body=payload)
+        request_id = _request_id(response)
+        return TaskResult(
+            task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def _request(
         self, method: str, path: str, json_body: Mapping[str, object] | None = None
     ) -> httpx.Response:
