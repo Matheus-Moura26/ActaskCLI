@@ -136,12 +136,12 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** CLI-023, CLI-024 e AC-08 passam.
 **Commit:** `ci: build signed v1 release artifacts`
 
-### T14 - Document installation and release v1.0.0
+### T14 - Document installation and release v1.0.0 [x]
 
 **Deliverable:** Instrucoes de download, verificacao, instalacao, `git clone`, desenvolvimento e release notes.
 **Depends on:** T13.
 **Tests:** Comandos de instalacao verificados em ambiente limpo.
-**Gate:** Tag `v1.0.0`, artefatos e checksums publicados; repositorio permanece privado.
+**Gate:** Documentacao e arquivos de release preparados localmente; o orquestrador deve publicar a tag `v1.0.0`, os artefatos e checksums no repositorio privado.
 **Commit:** `docs: prepare v1.0.0 release`
 
 ## Coverage Matrix
