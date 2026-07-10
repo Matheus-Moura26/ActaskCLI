@@ -110,7 +110,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 
 ## Phase 4 - AI Skill
 
-### T11 - Initialize the actask-cli Skill
+### T11 - Initialize the actask-cli Skill [x]
 
 **Deliverable:** Skill criada em `skills/actask-cli/` com o inicializador oficial, `SKILL.md`, `agents/openai.yaml` e `references/commands.md`.
 **Depends on:** T09; comandos de leitura devem estar estaveis.

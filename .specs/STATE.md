@@ -33,10 +33,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 3 complete
-- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10
+- **Phase / Task**: Phase 4 in progress
+- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11
 - **In-progress** (file:line): none
-- **Next step**: Hand off to Phase 4 / T11. Do not begin it until explicitly requested.
+- **Next step**: Complete Phase 4 / T12 with offline forward tests for the Skill.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`
