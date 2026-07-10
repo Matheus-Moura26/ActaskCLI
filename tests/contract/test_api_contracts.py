@@ -6,7 +6,6 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-
 FIXTURES = Path(__file__).resolve().parents[2] / ".specs" / "features" / "cli-v1" / "fixtures"
 REDACTED_SESSION = "<redacted-session-token>"
 
@@ -90,17 +89,33 @@ class ApiContractTests(unittest.TestCase):
             return error.code, json.load(error)
 
     def test_fixtures_are_sanitized_and_have_required_contract_fields(self):
-        fixtures = {path.name: json.loads(path.read_text(encoding="utf-8")) for path in FIXTURES.glob("*.json")}
+        fixtures = {
+            path.name: json.loads(path.read_text(encoding="utf-8"))
+            for path in FIXTURES.glob("*.json")
+        }
 
         self.assertEqual(fixtures["login.success.json"]["session_token"], REDACTED_SESSION)
-        self.assertTrue({"id", "name", "email", "permissions"} <= fixtures["identity.success.json"].keys())
-        self.assertTrue({"id", "key", "current_sprint"} <= fixtures["projects.list.success.json"][0].keys())
-        self.assertTrue({"id", "key", "project_id", "is_archived"} <= fixtures["tasks.query.success.json"]["items"][0].keys())
-        self.assertTrue({"items", "total", "page", "page_size"} <= fixtures["tasks.query.success.json"].keys())
-        self.assertTrue(all("password" not in json.dumps(value).lower() for value in fixtures.values()))
+        self.assertTrue(
+            {"id", "name", "email", "permissions"} <= fixtures["identity.success.json"].keys()
+        )
+        self.assertTrue(
+            {"id", "key", "current_sprint"} <= fixtures["projects.list.success.json"][0].keys()
+        )
+        self.assertTrue(
+            {"id", "key", "project_id", "is_archived"}
+            <= fixtures["tasks.query.success.json"]["items"][0].keys()
+        )
+        self.assertTrue(
+            {"items", "total", "page", "page_size"} <= fixtures["tasks.query.success.json"].keys()
+        )
+        self.assertTrue(
+            all("password" not in json.dumps(value).lower() for value in fixtures.values())
+        )
 
     def test_success_contracts_for_login_identity_projects_and_paginated_tasks(self):
-        status, login = self.request("POST", "/auth/login", {"email": "member@example.test", "password": "<redacted>"}, False)
+        status, login = self.request(
+            "POST", "/auth/login", {"email": "member@example.test", "password": "<redacted>"}, False
+        )
         self.assertEqual(status, 200)
         self.assertEqual(login["session_token"], REDACTED_SESSION)
         self.assertEqual(login["user"]["id"], "user-member")
@@ -120,7 +135,9 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(project["key"], "EX")
 
-        status, page = self.request("POST", "/tasks/query", {"project_id": "project-1", "page": 1, "page_size": 25})
+        status, page = self.request(
+            "POST", "/tasks/query", {"project_id": "project-1", "page": 1, "page_size": 25}
+        )
         self.assertEqual(status, 200)
         self.assertEqual(page["total"], 1)
         self.assertEqual(page["page"], 1)
