@@ -51,7 +51,7 @@ jobs:
             runner: ubuntu-latest
             extension: ""
           - platform: macos-x64
-            runner: macos-13
+            runner: macos-15-intel
             extension: ""
           - platform: macos-arm64
             runner: macos-14
