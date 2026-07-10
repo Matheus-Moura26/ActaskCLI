@@ -1,5 +1,6 @@
 """Interactive authentication commands."""
 
+import json
 from typing import NoReturn
 
 import typer
@@ -72,7 +73,9 @@ def logout() -> None:
 
 
 @app.command()
-def whoami() -> None:
+def whoami(
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
     """Validate the active session and show the current identity."""
 
     profile, session_token = _active_session()
@@ -86,6 +89,25 @@ def whoami() -> None:
     except ApiError as error:
         _exit_api_error(error)
 
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "data": {
+                        "id": identity.user.id,
+                        "name": identity.user.name,
+                        "email": identity.user.email,
+                        "is_master": identity.user.is_master,
+                        "is_active": identity.user.is_active,
+                        "permissions": list(identity.user.permissions),
+                    },
+                    "meta": {"request_id": identity.request_id},
+                    "error": None,
+                },
+                sort_keys=True,
+            )
+        )
+        return
     typer.echo(f"{identity.user.name} <{identity.user.email}>")
 
 

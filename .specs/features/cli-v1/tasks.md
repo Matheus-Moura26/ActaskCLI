@@ -118,7 +118,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** Nome, frontmatter, descricao de gatilho e metadados sao validos.
 **Commit:** `feat(skill): initialize Actask CLI skill`
 
-### T12 - Add AI safety workflows and forward tests
+### T12 - Add AI safety workflows and forward tests [x]
 
 **Deliverable:** Fluxos de leitura e escrita segura, exemplos JSON e cenarios de forward test.
 **Depends on:** T10, T11.

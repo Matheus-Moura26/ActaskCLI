@@ -30,13 +30,19 @@
 
 **Decision:** A Skill `actask-cli` sera versionada neste repositorio e usara apenas comandos publicos da CLI, sem acesso direto ao banco ou credenciais.
 
+### AD-007 - Identidade estruturada para agentes
+
+**Decision:** `actask whoami` suporta `--json` com o mesmo envelope estavel dos demais comandos de dados.
+
+**Reason:** A Skill precisa confirmar a identidade corrente antes de descobrir ou alterar recursos sem depender de parsing da saida humana.
+
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 4 in progress
-- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11
+- **Phase / Task**: Phase 4 complete
+- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12
 - **In-progress** (file:line): none
-- **Next step**: Complete Phase 4 / T12 with offline forward tests for the Skill.
+- **Next step**: Hand off to Phase 5 / T13. Do not begin it until explicitly requested.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`

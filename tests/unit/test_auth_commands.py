@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from typer.testing import CliRunner
@@ -125,6 +126,29 @@ def test_whoami_validates_session_and_shows_identity(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert result.output == "Member User <member@example.test>\n"
+
+
+def test_whoami_json_uses_the_stable_envelope(monkeypatch) -> None:
+    profiles = FakeProfileStore(PROFILE)
+    credentials = FakeCredentialStore(SESSION_TOKEN)
+    client = FakeClient(identity_result=IdentityResult(USER, "req-whoami"))
+    _install_fakes(monkeypatch, profiles, credentials, client)
+
+    result = runner.invoke(app, ["whoami", "--json"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "data": {
+            "email": "member@example.test",
+            "id": "user-member",
+            "is_active": True,
+            "is_master": False,
+            "name": "Member User",
+            "permissions": ["tasks.read"],
+        },
+        "error": None,
+        "meta": {"request_id": "req-whoami"},
+    }
 
 
 def test_revoked_session_is_removed_and_can_be_replaced_by_login(monkeypatch) -> None:
