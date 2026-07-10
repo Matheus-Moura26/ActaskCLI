@@ -17,7 +17,15 @@ from actask_cli.client.errors import (
     ServerError,
     UnauthenticatedError,
 )
-from actask_cli.client.models import IdentityResult, LoginResult, LogoutResult, User
+from actask_cli.client.models import (
+    IdentityResult,
+    LoginResult,
+    LogoutResult,
+    Project,
+    ProjectListResult,
+    ProjectResult,
+    User,
+)
 
 
 class ActaskApiClient:
@@ -78,6 +86,26 @@ class ActaskApiClient:
         response = self._request("POST", "auth/logout")
         return LogoutResult(request_id=_request_id(response))
 
+    def list_projects(self) -> ProjectListResult:
+        response = self._request("GET", "projects")
+        request_id = _request_id(response)
+        payload = _payload_list(response)
+        return ProjectListResult(
+            projects=tuple(
+                Project.from_payload(_required_mapping(item, request_id), request_id)
+                for item in payload
+            ),
+            request_id=request_id,
+        )
+
+    def show_project(self, project_id: str) -> ProjectResult:
+        response = self._request("GET", f"projects/{project_id}")
+        request_id = _request_id(response)
+        return ProjectResult(
+            project=Project.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def _request(
         self, method: str, path: str, json_body: dict[str, str] | None = None
     ) -> httpx.Response:
@@ -121,10 +149,27 @@ def _payload(response: httpx.Response) -> dict[str, object]:
     return payload
 
 
+def _payload_list(response: httpx.Response) -> list[object]:
+    request_id = _request_id(response)
+    try:
+        payload: object = response.json()
+    except ValueError as error:
+        raise ServerError(response.status_code, request_id) from error
+    if not isinstance(payload, list):
+        raise ServerError(response.status_code, request_id)
+    return payload
+
+
 def _required_object(
     payload: dict[str, object], field: str, request_id: str | None
 ) -> dict[str, object]:
     value = payload.get(field)
+    if not isinstance(value, dict):
+        raise ServerError(request_id=request_id)
+    return value
+
+
+def _required_mapping(value: object, request_id: str | None) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ServerError(request_id=request_id)
     return value

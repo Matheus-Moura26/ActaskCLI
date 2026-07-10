@@ -84,7 +84,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 
 ## Phase 3 - Domain Commands
 
-### T08 - Implement project commands
+### T08 - Implement project commands [x]
 
 **Deliverable:** `projects list` e `projects show`.
 **Depends on:** T07.

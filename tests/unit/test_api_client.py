@@ -25,6 +25,7 @@ USER = {
     "is_active": True,
     "permissions": ["tasks.read"],
 }
+PROJECT = {"id": "project-1", "name": "Example Project", "key": "EX"}
 
 
 def test_client_sends_login_body_and_typed_authenticated_requests() -> None:
@@ -115,3 +116,29 @@ def test_client_rejects_non_https_server_url() -> None:
         ActaskApiClient("http://actask.example.test")
 
     assert error.value.exit_code == ExitCode.INVALID_INPUT
+
+
+def test_client_reads_projects_from_the_authorized_routes() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/projects":
+            return httpx.Response(200, headers={"X-Request-ID": "req-list"}, json=[PROJECT])
+        return httpx.Response(200, headers={"X-Request-ID": "req-show"}, json=PROJECT)
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        listed = client.list_projects()
+        shown = client.show_project("project-1")
+
+    assert [project.to_data() for project in listed.projects] == [PROJECT]
+    assert listed.request_id == "req-list"
+    assert shown.project.to_data() == PROJECT
+    assert shown.request_id == "req-show"
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("GET", "/projects"),
+        ("GET", "/projects/project-1"),
+    ]
+    assert all(request.headers["X-Session-Token"] == SESSION_TOKEN for request in requests)

@@ -33,10 +33,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 2 complete
-- **Completed**: T01, T02, T03, T04, T05, T06, T07
+- **Phase / Task**: Phase 3 in progress
+- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08
 - **In-progress** (file:line): none
-- **Next step**: Hand off to T08; do not begin Phase 3 until explicitly requested.
+- **Next step**: Continue with T09 after the T08 commit.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`
