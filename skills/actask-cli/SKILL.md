@@ -7,6 +7,8 @@ description: Operate Actask projects and tasks through the public Actask CLI wit
 
 Use only the installed `actask` command. Do not call the Actask API, database, browser, or credential store directly.
 
+Before operating, require a globally available `actask` command. For normal use, install the release binary in the system PATH or run `pipx ensurepath` followed by `pipx install ...`; do not create a project-local virtual environment merely to operate Actask.
+
 Read [references/commands.md](references/commands.md) before choosing command flags or interpreting output.
 
 ## Identity and Discovery

@@ -26,4 +26,4 @@ def test_version_shows_cli_version_and_server_profile(monkeypatch) -> None:
     result = runner.invoke(main.app, ["version"])
 
     assert result.exit_code == 0
-    assert result.output == "actask 1.0.0\nserver: https://actask.example.test\n"
+    assert result.output == "actask 1.0.1\nserver: https://actask.example.test\n"

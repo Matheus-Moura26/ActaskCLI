@@ -21,7 +21,11 @@ actask whoami --json
 actask version
 ```
 
-`login` is interactive. The user enters the server URL, email, and hidden password locally. Never provide credentials to the agent or put them in a command argument.
+`login` is interactive. Its default server is `https://actaskapi.bluefronte.com`; the user can press Enter at Server URL to use it. The user enters the email and hidden password locally. Never provide credentials to the agent or put them in a command argument.
+
+## Installation for agents and users
+
+Require `actask` to resolve from the system PATH before operating. Use a release binary installed in a system PATH directory, or `pipx ensurepath` followed by `pipx install` for a globally callable per-user command. Do not create a project-local virtual environment for ordinary CLI operation; reserve `.venv` for CLI development and tests.
 
 ## Projects
 

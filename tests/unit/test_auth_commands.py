@@ -89,7 +89,7 @@ def _install_fakes(
     monkeypatch.setattr(auth, "_client", lambda base_url, session_token=None: client)
 
 
-def test_login_hides_password_and_stores_session(monkeypatch) -> None:
+def test_login_uses_default_server_and_hides_password(monkeypatch) -> None:
     profiles = FakeProfileStore()
     credentials = FakeCredentialStore()
     client = FakeClient(login_result=LoginResult(SESSION_TOKEN, USER, "req-login"))
@@ -98,14 +98,16 @@ def test_login_hides_password_and_stores_session(monkeypatch) -> None:
     result = runner.invoke(
         app,
         ["login"],
-        input="https://actask.example.test\nmember@example.test\n<redacted-password>\n",
+        input="\nmember@example.test\n<redacted-password>\n",
     )
 
     assert result.exit_code == 0
-    assert profiles.active_profile == PROFILE
+    assert profiles.active_profile == ServerProfile.create(
+        "https://actaskapi.bluefronte.com", "member@example.test"
+    )
     assert credentials.session_token == SESSION_TOKEN
     assert result.output == (
-        "Server URL: https://actask.example.test\n"
+        "Server URL [https://actaskapi.bluefronte.com]: \n"
         "Email: member@example.test\n"
         "Password: \n"
         "Logged in as member@example.test.\n"

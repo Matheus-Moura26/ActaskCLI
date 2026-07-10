@@ -10,6 +10,8 @@ from getpass import getuser
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+DEFAULT_SERVER_URL = "https://actaskapi.bluefronte.com"
+
 
 class ProfileError(ValueError):
     """Raised when a server profile cannot be safely used."""

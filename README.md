@@ -2,7 +2,7 @@
 
 CLI oficial do Actask para uso humano e por agentes de IA.
 
-> Status: **v1.0.0 preparada localmente**. A tag e a release privada ainda devem ser publicadas pelo orquestrador.
+> Status: **v1.0.1 publicada**. A release e privada.
 
 O objetivo da v1 e oferecer login individual, consultas seguras e comandos essenciais de tasks e projetos. Toda autorizacao sera validada pelo backend do Actask; a CLI nunca sera a fonte de verdade para permissoes.
 
@@ -40,7 +40,7 @@ Cada pessoa deve instalar e autenticar sua propria copia. A CLI armazena a sessa
 
 ### Binario da release
 
-Depois que `v1.0.0` for publicada, baixe o arquivo correspondente na pagina de Releases privada do GitHub:
+Baixe o arquivo correspondente na pagina de Releases privada do GitHub:
 
 | Sistema | Arquivo |
 | --- | --- |
@@ -57,11 +57,16 @@ sudo mv actask-linux-x64 /usr/local/bin/actask
 actask version
 ```
 
-No Windows, mantenha `actask-windows-x64.exe` em um diretorio incluido no `PATH`, ou execute-o diretamente:
+No Windows, instale o binario em `C:\Program Files\Actask` e inclua esse diretorio no `PATH` da maquina. Execute o PowerShell como administrador:
 
 ```powershell
-.\actask-windows-x64.exe version
+New-Item -ItemType Directory -Force 'C:\Program Files\Actask'
+Move-Item .\actask-windows-x64.exe 'C:\Program Files\Actask\actask.exe'
+$path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+[Environment]::SetEnvironmentVariable('Path', "$path;C:\Program Files\Actask", 'Machine')
 ```
+
+Abra um novo terminal e confirme com `actask version`.
 
 ### Verificacao do download
 
@@ -85,21 +90,24 @@ Get-FileHash .\actask-windows-x64.exe -Algorithm SHA256
 
 Nao execute um binario cujo SHA-256 nao corresponda ao checksum publicado.
 
-### pipx
+### pipx para uso global
 
-Usuarios com acesso SSH ao repositorio privado podem instalar diretamente pela tag:
+`pipx` instala o comando de forma global para o usuario, sem ativar ambiente virtual em cada projeto. IAs e usuarios operacionais devem usar este metodo ou o binario da release; nao crie `.venv` para apenas executar a CLI.
 
 ```bash
-pipx install "git+ssh://git@github.com/Matheus-Moura26/ActaskCLI.git@v1.0.0"
+pipx ensurepath
+pipx install "git+ssh://git@github.com/Matheus-Moura26/ActaskCLI.git@v1.0.1"
 actask version
 ```
+
+Abra um novo terminal depois de `pipx ensurepath` para que o `PATH` seja atualizado.
 
 ### Clone para desenvolvimento
 
 ```bash
 git clone git@github.com:Matheus-Moura26/ActaskCLI.git
 cd ActaskCLI
-git checkout v1.0.0
+git checkout v1.0.1
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
@@ -115,4 +123,4 @@ actask login
 actask whoami
 ```
 
-`login` solicita senha sem eco no terminal. A autorizacao de cada comando continua sendo decidida pelo backend; um `403` significa que a conta autenticada nao possui permissao para aquela operacao.
+`login` usa `https://actaskapi.bluefronte.com` como padrao; pressione Enter no campo Server URL para usa-la. Informe outra URL somente para staging ou ambiente proprio. A senha nao aparece no terminal. A autorizacao de cada comando continua sendo decidida pelo backend; um `403` significa que a conta autenticada nao possui permissao para aquela operacao.

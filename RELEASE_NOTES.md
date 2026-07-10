@@ -1,3 +1,17 @@
+# Actask CLI v1.0.1
+
+## Alteracoes
+
+- `actask login` usa `https://actaskapi.bluefronte.com` como Server URL padrao.
+- Documentada a instalacao operacional global por binario no PATH ou por `pipx`.
+- A Skill instrui IAs a usarem uma CLI globalmente disponivel e a reservarem `.venv` para desenvolvimento e testes.
+
+## Atualizacao
+
+Instale ou atualize pela tag `v1.0.1`.
+
+---
+
 # Actask CLI v1.0.0
 
 ## Highlights
