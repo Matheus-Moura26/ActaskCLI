@@ -58,7 +58,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 **Gate:** lint, type-check, testes e build local passam.
 **Commit:** `build: scaffold Actask CLI package`
 
-### T05 - Implement profiles and secure credentials
+### T05 - Implement profiles and secure credentials [x]
 
 **Deliverable:** Perfis de servidor e adapter de keychain sem fallback em texto puro.
 **Depends on:** T04.

@@ -34,9 +34,9 @@
 
 - **Feature**: `.specs/features/cli-v1`
 - **Phase / Task**: Phase 2 in progress
-- **Completed**: T01, T02, T03, T04
+- **Completed**: T01, T02, T03, T04, T05
 - **In-progress** (file:line): none
-- **Next step**: T05 - Implement profiles and secure credentials.
+- **Next step**: T06 - Implement typed HTTP client.
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: `main`
