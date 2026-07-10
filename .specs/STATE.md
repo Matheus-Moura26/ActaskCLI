@@ -36,13 +36,22 @@
 
 **Reason:** A Skill precisa confirmar a identidade corrente antes de descobrir ou alterar recursos sem depender de parsing da saida humana.
 
+## Validation Remediation
+
+### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
+
+- Adicionados testes de equivalencia semantica entre saida humana e JSON para `whoami`, `projects show` e `tasks show`.
+- Adicionado teste de `tasks update --dry-run --json` que valida o payload normalizado e falha se a CLI tentar construir cliente de rede.
+- Provisionado `C:\Users\Acdev\RiderProjects\ActaskBack\.venv` apenas com dependencias locais necessarias (`requirements.txt`, `pytest` e `httpx`) para executar `tests/test_cli_v1_authorization.py`.
+- Execucao direta no backend concluida com sucesso: `6 passed` em `tests/test_cli_v1_authorization.py`.
+
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Phase 5 complete; publication pending orchestrator
+- **Phase / Task**: Validation remediation complete; publication still pending orchestrator
 - **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12, T13, T14
 - **In-progress** (file:line): none
-- **Next step**: Independent verifier, then orchestrator may push `main`, create tag `v1.0.0` and let the private release workflow publish artifacts.
+- **Next step**: Independent verifier reruns AC evidence with the new tests and direct-backend execution; AC-08 still depends on tag-driven native runners.
 - **Blockers**: GitHub Actions native runners and private GitHub Release cannot be verified or published locally.
-- **Uncommitted files**: none
+- **Uncommitted files**: `.specs/features/cli-v1/validation.md` (verifier report, pre-existing)
 - **Branch**: `main`

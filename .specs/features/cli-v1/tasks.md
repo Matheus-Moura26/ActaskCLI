@@ -158,3 +158,10 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 ## Independent Verification
 
 O verificador final deve reconstruir a matriz entre CLI-001..026, AC-01..08, testes e evidencias. Deve executar os gates a partir de checkout limpo, testar chamadas diretas ao backend e procurar segredos em logs, fixtures, historico Git e artefatos. Qualquer criterio sem evidencia objetiva falha a release.
+
+## Post-validation remediation - 2026-07-10
+
+- [x] AC-05: adicionar equivalencia semantica humano/JSON para `whoami`, `projects show` e `tasks show`.
+- [x] AC-06: adicionar `tasks update --dry-run --json` validando payload normalizado e ausencia de criacao de cliente.
+- [x] AC-02 / AC-03: tornar executavel o teste direto `C:\Users\Acdev\RiderProjects\ActaskBack\tests\test_cli_v1_authorization.py` com ambiente local provisionado e execucao bem-sucedida (`6 passed`).
+- [ ] AC-08 permanece fora deste escopo; depende de GitHub Actions nativo apos tag.
