@@ -50,7 +50,7 @@ T11 -> T12 -------------------------> T13 -> T14 -> Verify
 
 ## Phase 2 - CLI Foundation
 
-### T04 - Scaffold Python package and quality gates
+### T04 - Scaffold Python package and quality gates [x]
 
 **Deliverable:** `pyproject.toml`, pacote Typer, Ruff, mypy, pytest e CI basica.
 **Depends on:** T03.
