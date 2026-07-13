@@ -87,3 +87,4 @@ Entregar uma CLI multiplataforma para usuarios e agentes de IA operarem o Actask
 - Execucao offline com sincronizacao posterior.
 - Cobertura integral de todos os recursos da interface web.
 - Plugins de terceiros executados dentro do processo da CLI.
+- Resolução semântica genérica de nomes humanos para pessoas, campos e opções customizadas; planejada em `cli-semantic-field-resolution`.
