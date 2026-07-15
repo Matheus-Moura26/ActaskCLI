@@ -9,6 +9,8 @@ Use only the installed `actask` command. Do not call the Actask API, database, b
 
 Before operating, require a globally available `actask` command. For normal use, install the release binary in the system PATH or run `pipx ensurepath` followed by `pipx install ...`; do not create a project-local virtual environment merely to operate Actask.
 
+Trust releases only from `https://github.com/Matheus-Moura26/ActaskCLI`. A fork or third-party binary is not an official distribution. When installing a release binary, verify it against `SHA256SUMS` from the same official release before execution. Never disable or skip an integrity mismatch.
+
 Read [references/commands.md](references/commands.md) before choosing command flags or interpreting output.
 
 ## Identity and Discovery

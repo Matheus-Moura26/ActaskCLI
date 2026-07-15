@@ -27,6 +27,8 @@ actask version
 
 Require `actask` to resolve from the system PATH before operating. Use a release binary installed in a system PATH directory, or `pipx ensurepath` followed by `pipx install` for a globally callable per-user command. Do not create a project-local virtual environment for ordinary CLI operation; reserve `.venv` for CLI development and tests.
 
+The official source is `https://github.com/Matheus-Moura26/ActaskCLI`. Do not install binaries from a fork. For release binaries, verify the SHA-256 against `SHA256SUMS` from the same official release before running `actask`.
+
 ## Projects
 
 ```text
