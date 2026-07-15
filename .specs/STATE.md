@@ -54,10 +54,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/public-repository-hardening`
-- **Phase / Task**: Fase 3 / T06
-- **Completed**: T01, T02, T03, T04, T05
+- **Phase / Task**: Feature concluida e validada
+- **Completed**: T01, T02, T03, T04, T05, T06
 - **In-progress** (file:line): none
-- **Next step**: Publish the verified feature branch and record completion.
+- **Next step**: Review and merge the CLI/Skill pull request; then specify safe environment promotion separately.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
 - **Branch**: `codex/harden-public-cli-skill`
