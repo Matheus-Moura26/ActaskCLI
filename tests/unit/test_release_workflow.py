@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 PINNED_ACTIONS = (
@@ -30,6 +31,12 @@ def test_workflows_pin_actions_and_apply_least_privilege() -> None:
 
     for action in PINNED_ACTIONS:
         assert action in workflows
+    mutable_actions = [
+        line.strip()
+        for line in workflows.splitlines()
+        if re.search(r"\buses:\s+[^./\s][^\s]*@(?![0-9a-f]{40}\b)", line)
+    ]
+    assert mutable_actions == []
     assert "actions/checkout@v4" not in workflows
     assert "actions/setup-python@v5" not in workflows
     assert "permissions:\n  contents: read" in ci
