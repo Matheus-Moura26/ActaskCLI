@@ -2,7 +2,7 @@
 
 CLI oficial do Actask para uso humano e por agentes de IA.
 
-> Status: **v1.0.2 publicada**. A release e privada.
+> Status: **v1.0.2 publicada** em repositorio publico.
 
 O objetivo da v1 e oferecer login individual, consultas seguras e comandos essenciais de tasks e projetos. Toda autorizacao sera validada pelo backend do Actask; a CLI nunca sera a fonte de verdade para permissoes.
 
@@ -30,9 +30,9 @@ O objetivo da v1 e oferecer login individual, consultas seguras e comandos essen
 
 A CLI pode antecipar indisponibilidade de um comando para melhorar a experiencia, mas cada requisicao deve ser autenticada e autorizada novamente pelo backend. Uma tentativa fora do escopo do usuario deve falhar com `401` ou `403`, inclusive quando chamada diretamente sem a CLI.
 
-## Repositorio
+## Repositorio oficial
 
-Este projeto e privado. Nao inclua tokens, senhas, arquivos de configuracao pessoais ou respostas reais da API em commits, testes ou exemplos.
+O unico repositorio oficial e [github.com/Matheus-Moura26/ActaskCLI](https://github.com/Matheus-Moura26/ActaskCLI). O codigo pode ser publico porque a autorizacao permanece no backend, mas isso nao torna forks ou binarios de terceiros confiaveis. Nao inclua tokens, senhas, arquivos de configuracao pessoais ou respostas reais da API em commits, testes ou exemplos. Consulte tambem [SECURITY.md](SECURITY.md).
 
 ## Instalacao
 
@@ -40,7 +40,7 @@ Cada pessoa deve instalar e autenticar sua propria copia. A CLI armazena a sessa
 
 ### Binario da release
 
-Baixe o arquivo correspondente na pagina de Releases privada do GitHub:
+Baixe o arquivo correspondente somente na pagina de Releases do repositorio oficial:
 
 | Sistema | Arquivo |
 | --- | --- |
@@ -96,7 +96,7 @@ Nao execute um binario cujo SHA-256 nao corresponda ao checksum publicado.
 
 ```bash
 pipx ensurepath
-pipx install "git+ssh://git@github.com/Matheus-Moura26/ActaskCLI.git@v1.0.2"
+pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.0.2"
 actask version
 ```
 
@@ -105,7 +105,7 @@ Abra um novo terminal depois de `pipx ensurepath` para que o `PATH` seja atualiz
 ### Clone para desenvolvimento
 
 ```bash
-git clone git@github.com:Matheus-Moura26/ActaskCLI.git
+git clone https://github.com/Matheus-Moura26/ActaskCLI.git
 cd ActaskCLI
 git checkout v1.0.2
 python -m venv .venv

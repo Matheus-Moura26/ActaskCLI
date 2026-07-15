@@ -2,11 +2,17 @@
 
 ## Decisions
 
-### AD-001 - Repositorio independente e privado
+### AD-001 - Repositorio independente e privado (substituida por AD-008)
 
 **Decision:** A CLI vive em `ActaskCLI`, separada de `ActaskBack` e `ActaskFront`, com visibilidade privada.
 
 **Reason:** Permitir ciclo de release, distribuicao, testes e contribuicoes independentes sem acoplar o produto aos deploys da API ou SPA.
+
+### AD-008 - Repositorio publico com distribuicao endurecida
+
+**Decision:** A CLI e a Skill podem ser publicas porque nao contem a autoridade de acesso. A distribuicao deve identificar a origem oficial, publicar checksums, fixar Actions por SHA, operar com menor privilegio e manter secret scanning e alertas de dependencias habilitados.
+
+**Reason:** O backend continua autenticando e autorizando cada requisicao, enquanto os controles do repositorio reduzem riscos de vazamento acidental e supply chain. Rate limiting e politicas de sessao dependem do ActaskBack e nao fazem parte desta decisao.
 
 ### AD-002 - Python com Typer
 
@@ -47,11 +53,11 @@
 
 ## Handoff
 
-- **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: v1.0.0 released and verified
+- **Feature**: `.specs/features/public-repository-hardening`
+- **Phase / Task**: Fase 1 / T02
 - **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12, T13, T14
 - **In-progress** (file:line): none
-- **Next step**: Begin the next approved feature.
+- **Next step**: Add executable security requirements, then implement only CLI/Skill changes.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `main`
+- **Branch**: `codex/harden-public-cli-skill`
