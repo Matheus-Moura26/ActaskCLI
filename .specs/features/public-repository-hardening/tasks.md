@@ -12,5 +12,5 @@
 
 ## Fase 3 - Validacao e publicacao
 
-- [ ] **T05** Executar qualidade completa e revisao independente.
+- [x] **T05** Executar qualidade completa e revisao independente.
 - [ ] **T06** Aplicar configuracoes de seguranca suportadas pelo GitHub e publicar a branch.

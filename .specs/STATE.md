@@ -54,10 +54,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/public-repository-hardening`
-- **Phase / Task**: Fase 1 / T02
-- **Completed**: T01, T02, T03, T04, T05, T06, T07, T08, T09, T10, T11, T12, T13, T14
+- **Phase / Task**: Fase 3 / T06
+- **Completed**: T01, T02, T03, T04, T05
 - **In-progress** (file:line): none
-- **Next step**: Add executable security requirements, then implement only CLI/Skill changes.
+- **Next step**: Publish the verified feature branch and record completion.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
 - **Branch**: `codex/harden-public-cli-skill`
