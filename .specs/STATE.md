@@ -42,6 +42,12 @@
 
 **Reason:** A Skill precisa confirmar a identidade corrente antes de descobrir ou alterar recursos sem depender de parsing da saida humana.
 
+### AD-009 - Movimentacao usa a rota especializada
+
+**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com apenas `column_id`; a API coloca a task no fim da coluna alvo. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
+
+**Reason:** A rota especializada registra historico, worklog e transicoes de status. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Reordenacao de toda a coluna continua fora do comando de atualizacao de uma unica task.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -53,11 +59,11 @@
 
 ## Handoff
 
-- **Feature**: `.specs/features/public-repository-hardening`
-- **Phase / Task**: Feature concluida e validada
-- **Completed**: T01, T02, T03, T04, T05, T06
+- **Feature**: `.specs/features/cli-v1`
+- **Phase / Task**: Post-v1 remediation: safe task movement
+- **Completed**: `tasks update --column-id` delegates to the canonical move route.
 - **In-progress** (file:line): none
-- **Next step**: Review and merge the CLI/Skill pull request; then specify safe environment promotion separately.
+- **Next step**: Review and release the CLI separately from the API/frontend stage deployment.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/harden-public-cli-skill`
+- **Branch**: `codex/cli-move-stage`

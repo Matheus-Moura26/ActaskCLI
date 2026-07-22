@@ -160,6 +160,22 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def move_task(self, task_id: str, column_id: str) -> TaskResult:
+        """Move a task through the backend's canonical movement workflow.
+
+        Omitting ``position`` makes the backend place the task at the end of the
+        target column.  A single-task move must not reorder other tasks.
+        """
+
+        response = self._request(
+            "PATCH", f"tasks/{task_id}/move", json_body={"column_id": column_id}
+        )
+        request_id = _request_id(response)
+        return TaskResult(
+            task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def _project_catalog(self, path: str) -> ProjectCatalogResult:
         response = self._request("GET", path)
         request_id = _request_id(response)

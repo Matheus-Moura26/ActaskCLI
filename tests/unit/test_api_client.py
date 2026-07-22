@@ -220,12 +220,15 @@ def test_client_writes_tasks_to_the_authorized_routes() -> None:
     ) as client:
         created = client.create_task({"project_id": "project-1", "title": "Example", "sprint": 1})
         updated = client.update_task("task-1", {"title": "Updated"})
+        moved = client.move_task("task-1", "column-2")
 
     assert created.task.to_data() == TASK
     assert updated.task.to_data() == TASK
+    assert moved.task.to_data() == TASK
     assert [(request.method, request.url.path) for request in requests] == [
         ("POST", "/tasks"),
         ("PUT", "/tasks/task-1"),
+        ("PATCH", "/tasks/task-1/move"),
     ]
     assert json.loads(requests[0].content) == {
         "project_id": "project-1",
@@ -233,3 +236,4 @@ def test_client_writes_tasks_to_the_authorized_routes() -> None:
         "sprint": 1,
     }
     assert json.loads(requests[1].content) == {"title": "Updated"}
+    assert json.loads(requests[2].content) == {"column_id": "column-2"}

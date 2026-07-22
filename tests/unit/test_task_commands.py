@@ -66,9 +66,17 @@ class FakeClient:
 
     def update_task(self, task_id: str, payload: dict[str, object]) -> TaskResult:
         self.payload = payload
+        self.payloads.append(payload)
         if self.conflict:
             raise ConflictError("req-conflict")
         return TaskResult(TASK, "req-update")
+
+    def move_task(self, task_id: str, column_id: str) -> TaskResult:
+        self.payload = {"column_id": column_id}
+        self.payloads.append(self.payload)
+        if self.conflict:
+            raise ConflictError("req-conflict")
+        return TaskResult(TASK, "req-move")
 
 
 def _install_fakes(monkeypatch, client: FakeClient) -> None:
@@ -320,20 +328,8 @@ def test_tasks_update_dry_run_does_not_create_a_client_and_shows_normalized_json
             "tasks",
             "update",
             "task-1",
-            "--title",
-            "Updated title",
-            "--description",
-            "Updated details",
-            "--sprint",
-            "3",
             "--column-id",
             "column-2",
-            "--assignee-id",
-            "user-2",
-            "--priority",
-            "high",
-            "--issue-type",
-            "bug",
             "--dry-run",
             "--json",
         ],
@@ -342,14 +338,48 @@ def test_tasks_update_dry_run_does_not_create_a_client_and_shows_normalized_json
     assert result.exit_code == 0
     assert json.loads(result.output) == {
         "data": {
-            "title": "Updated title",
-            "description": "Updated details",
-            "sprint": 3,
-            "column_id": "column-2",
-            "assignee_id": "user-2",
-            "priority": "high",
-            "type": "bug",
+            "move": {"column_id": "column-2"},
         },
         "error": None,
         "meta": {"dry_run": True},
     }
+
+
+def test_tasks_update_moves_column_with_canonical_route(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        ["tasks", "update", "task-1", "--column-id", "column-2", "--yes", "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert client.payloads == [{"column_id": "column-2"}]
+    assert json.loads(result.output)["meta"] == {"request_id": "req-move"}
+
+
+def test_tasks_update_rejects_move_combined_with_other_fields_before_request(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "update",
+            "task-1",
+            "--column-id",
+            "column-2",
+            "--title",
+            "Updated",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stderr == (
+        "--column-id cannot be combined with other task fields; "
+        "move the task in a separate command.\n"
+    )
+    assert client.payload is None

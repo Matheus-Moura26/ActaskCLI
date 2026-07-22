@@ -67,4 +67,4 @@ actask tasks update <task-id> --title <title> --dry-run --json
 actask tasks update <task-id> --title <title> --yes --json
 ```
 
-Optional create and update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request.
+Optional create and update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses `PATCH /tasks/{id}/move`, which places the task at the end of the target column and preserves the backend movement history. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request.

@@ -152,8 +152,20 @@ def update_task(
     payload = _update_payload(
         title, description, sprint, column_id, assignee_id, priority, issue_type
     )
+    move_column_id = payload.pop("column_id", None)
+    if move_column_id is not None:
+        assert isinstance(move_column_id, str)
+    if move_column_id is not None and payload:
+        _exit(
+            "--column-id cannot be combined with other task fields; "
+            "move the task in a separate command.",
+            ExitCode.INVALID_INPUT,
+        )
     if dry_run:
-        _write_dry_run(payload, json_output)
+        _write_dry_run(
+            {"move": {"column_id": move_column_id}} if move_column_id is not None else payload,
+            json_output,
+        )
         return
     if not _confirm("Update this task?", yes):
         _write_cancelled(json_output)
@@ -163,7 +175,10 @@ def update_task(
     credentials = CredentialStore()
     try:
         with _client(profile.server_url, session_token) as client:
-            result = client.update_task(normalized_task_id, payload)
+            if move_column_id is not None:
+                result = client.move_task(normalized_task_id, move_column_id)
+            else:
+                result = client.update_task(normalized_task_id, payload)
     except UnauthenticatedError as error:
         _delete_after_unauthenticated(credentials, profile)
         _exit_api_error(error)
