@@ -43,10 +43,11 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 ## Write Workflow
 
 1. Read the relevant project and task state first.
-2. State the proposed change, including task ID and changed fields, and obtain explicit user authorization unless the request already clearly authorizes that exact change.
-3. Run `actask tasks create ... --dry-run --json` or `actask tasks update ... --dry-run --json`.
-4. Compare the normalized dry-run payload with the authorized change. Ask again if fields, target, or effect differ.
-5. Execute the matching command with `--yes --json` only after confirmation. Do not add commands for deletion or other destructive operations.
+2. Before creating a subtask, read its intended parent with `actask tasks show <parent-task-id> --json`; use the parent's `project_id` and do not create a child of another subtask. The backend enforces the one-level hierarchy.
+3. State the proposed change, including task ID and changed fields, and obtain explicit user authorization unless the request already clearly authorizes that exact change.
+4. Run `actask tasks create ... --dry-run --json` or `actask tasks update ... --dry-run --json`.
+5. Compare the normalized dry-run payload with the authorized change. Ask again if fields, target, or effect differ.
+6. Execute the matching command with `--yes --json` only after confirmation. Do not add commands for deletion or other destructive operations.
 
 ## Required Stops
 

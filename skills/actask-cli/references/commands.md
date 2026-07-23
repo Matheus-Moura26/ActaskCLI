@@ -50,6 +50,7 @@ Use `columns` to resolve a visual board-column name to its ID. Use `fields` to d
 ```text
 actask tasks list --project <project-id> --json [--page <number>] [--page-size <number>] [--query <text>] [--filter <field:operator:value>]
 actask tasks show <task-id> --json
+actask tasks create --project <project-id> --title <title> --sprint <number> --parent-id <parent-task-id> --dry-run --json
 ```
 
 Use filters exactly as `field:operator:value`. A `403` means access was denied; do not interpret it as an empty result.
@@ -63,8 +64,9 @@ For counts, request a filtered page and read `meta.total`; `data.length` is only
 ```text
 actask tasks create --project <project-id> --title <title> --sprint <number> --dry-run --json
 actask tasks create --project <project-id> --title <title> --sprint <number> --yes --json
+actask tasks create --project <project-id> --title <title> --sprint <number> --parent-id <parent-task-id> --yes --json
 actask tasks update <task-id> --title <title> --dry-run --json
 actask tasks update <task-id> --title <title> --yes --json
 ```
 
-Optional create and update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses `PATCH /tasks/{id}/move`, which places the task at the end of the target column and preserves the backend movement history. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request.
+Optional create fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, `--issue-type`, and `--parent-id`. Supplying `--parent-id` creates a subtask under that parent. First inspect the parent with `tasks show`, copy its `project_id` into `--project`, and do not use a subtask as the parent: Actask supports one hierarchy level and the backend verifies this invariant. The remaining optional update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses `PATCH /tasks/{id}/move`, which places the task at the end of the target column and preserves the backend movement history. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request.

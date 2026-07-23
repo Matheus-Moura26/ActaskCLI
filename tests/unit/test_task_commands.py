@@ -234,6 +234,65 @@ def test_tasks_create_rejects_invalid_input_without_request(monkeypatch) -> None
     assert client.payload is None
 
 
+def test_tasks_create_subtask_sends_parent_id_after_confirmation(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example subtask",
+            "--sprint",
+            "1",
+            "--parent-id",
+            "task-parent",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert client.payload == {
+        "project_id": "project-1",
+        "title": "Example subtask",
+        "sprint": 1,
+        "description": "",
+        "priority": "normal",
+        "type": "task",
+        "parent_id": "task-parent",
+    }
+
+
+def test_tasks_create_rejects_empty_parent_id_without_request(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example subtask",
+            "--sprint",
+            "1",
+            "--parent-id",
+            "   ",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stderr == "A parent task ID cannot be empty.\n"
+    assert client.payload is None
+
+
 def test_tasks_create_preserves_forbidden_response(monkeypatch) -> None:
     client = FakeClient(foreign_project=True)
     _install_fakes(monkeypatch, client)

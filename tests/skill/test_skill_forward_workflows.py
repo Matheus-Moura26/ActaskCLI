@@ -77,6 +77,8 @@ def test_skill_documents_cli_only_and_required_stops() -> None:
     assert "meta.total" in skill
     assert "actask projects columns <project-id> --json" in skill
     assert "--filter column:=:<column-id>" in reference
+    assert "--parent-id <parent-task-id>" in reference
+    assert "Before creating a subtask" in skill
     assert "<redacted-session-token>" not in skill + reference
     assert "https://github.com/Matheus-Moura26/ActaskCLI" in skill
     assert "SHA256SUMS" in skill

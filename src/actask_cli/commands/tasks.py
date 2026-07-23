@@ -96,6 +96,11 @@ def create_task(
     assignee_id: str | None = typer.Option(None, help="Assignee user ID."),
     priority: str = typer.Option("normal", help="Task priority."),
     issue_type: str = typer.Option("task", "--issue-type", help="Task issue type."),
+    parent_id: str | None = typer.Option(
+        None,
+        "--parent-id",
+        help="Parent task ID. Creates this task as a one-level subtask.",
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show the normalized payload only."),
     yes: bool = typer.Option(False, "--yes", help="Confirm the change without a prompt."),
     json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
@@ -111,6 +116,7 @@ def create_task(
         assignee_id,
         priority,
         issue_type,
+        parent_id,
     )
     if dry_run:
         _write_dry_run(payload, json_output)
@@ -203,6 +209,7 @@ def _create_payload(
     assignee_id: str | None,
     priority: str,
     issue_type: str,
+    parent_id: str | None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "project_id": _require_non_empty(project_id, "A project ID is required."),
@@ -216,6 +223,8 @@ def _create_payload(
         payload["column_id"] = _require_non_empty(column_id, "A column ID cannot be empty.")
     if assignee_id is not None:
         payload["assignee_id"] = _require_non_empty(assignee_id, "An assignee ID cannot be empty.")
+    if parent_id is not None:
+        payload["parent_id"] = _require_non_empty(parent_id, "A parent task ID cannot be empty.")
     return payload
 
 

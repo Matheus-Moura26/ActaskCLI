@@ -1,3 +1,16 @@
+# Actask CLI v1.0.4
+
+## Alteracoes
+
+- `actask tasks create` agora aceita `--parent-id` para criar subtasks de primeiro nivel.
+- A Skill orienta a validar a task pai, usar o mesmo projeto e executar dry-run antes da criacao.
+
+## Atualizacao
+
+Instale ou atualize pela tag `v1.0.4`.
+
+---
+
 # Actask CLI v1.0.3
 
 ## Correcoes
