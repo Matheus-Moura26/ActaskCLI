@@ -1,3 +1,17 @@
+# Actask CLI v1.0.3
+
+## Correcoes
+
+- `actask projects show` agora usa a rota de leitura versionada e autorizada do backend.
+- HTTP 405 e reportado como incompatibilidade de contrato, sem ser mascarado como erro interno generico.
+- Skill atualizada com a orientacao segura para codigo 7 por incompatibilidade de contrato.
+
+## Atualizacao
+
+Instale ou atualize pela tag `v1.0.3`.
+
+---
+
 # Actask CLI v1.0.2
 
 ## Alteracoes

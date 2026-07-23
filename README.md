@@ -2,7 +2,7 @@
 
 CLI oficial do Actask para uso humano e por agentes de IA.
 
-> Status: **v1.0.2 publicada** em repositorio publico.
+> Status: **v1.0.3 publicada** em repositorio publico.
 
 O objetivo da v1 e oferecer login individual, consultas seguras e comandos essenciais de tasks e projetos. Toda autorizacao sera validada pelo backend do Actask; a CLI nunca sera a fonte de verdade para permissoes.
 
@@ -96,7 +96,7 @@ Nao execute um binario cujo SHA-256 nao corresponda ao checksum publicado.
 
 ```bash
 pipx ensurepath
-pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.0.2"
+pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.0.3"
 actask version
 ```
 
@@ -107,7 +107,7 @@ Abra um novo terminal depois de `pipx ensurepath` para que o `PATH` seja atualiz
 ```bash
 git clone https://github.com/Matheus-Moura26/ActaskCLI.git
 cd ActaskCLI
-git checkout v1.0.2
+git checkout v1.0.3
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"

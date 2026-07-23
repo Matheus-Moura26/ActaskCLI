@@ -48,6 +48,12 @@
 
 **Reason:** A rota especializada registra historico, worklog e transicoes de status. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Reordenacao de toda a coluna continua fora do comando de atualizacao de uma unica task.
 
+### AD-010 - Detalhe de projeto usa a rota de leitura versionada
+
+**Decision:** `actask projects show` usa `GET /task-loading/v1/projects/{project_id}`. HTTP 405 permanece no codigo de saida 7, mas e apresentado como incompatibilidade de contrato da API, nao como falha interna generica.
+
+**Reason:** A rota generica `/projects/{project_id}` nao oferece GET no backend publicado; a rota versionada aplica o controle de acesso e entrega o `ProjectOut` esperado pela CLI.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -60,10 +66,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Post-v1 remediation: safe task movement
-- **Completed**: `tasks update --column-id` delegates to the canonical move route.
+- **Phase / Task**: Post-v1 remediation: project detail contract
+- **Completed**: `projects show` uses the versioned read endpoint; HTTP 405 has a safe diagnostic; CLI and Skill are aligned.
 - **In-progress** (file:line): none
-- **Next step**: Review and release the CLI separately from the API/frontend stage deployment.
+- **Next step**: Publish and install v1.0.3 after independent verification.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
 - **Branch**: `codex/cli-move-stage`

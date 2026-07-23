@@ -70,6 +70,16 @@ class ConflictError(ApiError):
         )
 
 
+class MethodNotAllowedError(ApiError):
+    def __init__(self, request_id: str | None) -> None:
+        super().__init__(
+            "Actask API contract error: this CLI command is not supported by the server endpoint.",
+            ExitCode.NETWORK_OR_SERVER,
+            405,
+            request_id,
+        )
+
+
 class NetworkError(ApiError):
     def __init__(self) -> None:
         super().__init__("Unable to reach Actask server.", ExitCode.NETWORK_OR_SERVER)

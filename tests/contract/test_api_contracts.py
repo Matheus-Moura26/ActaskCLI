@@ -42,7 +42,7 @@ class ContractHandler(BaseHTTPRequestHandler):
             self._send(200, "identity.success.json")
         elif self.path == "/projects":
             self._send(200, "projects.list.success.json")
-        elif self.path == "/projects/project-1":
+        elif self.path == "/task-loading/v1/projects/project-1":
             self._send(200, "projects.show.success.json")
         else:
             self._send(403, "errors.403.json")
@@ -131,7 +131,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(projects[0]["id"], "project-1")
 
-        status, project = self.request("GET", "/projects/project-1")
+        status, project = self.request("GET", "/task-loading/v1/projects/project-1")
         self.assertEqual(status, 200)
         self.assertEqual(project["key"], "EX")
 

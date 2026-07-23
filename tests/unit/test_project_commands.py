@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from typer.testing import CliRunner
 
-from actask_cli.client.errors import ForbiddenError
+from actask_cli.client.errors import ForbiddenError, MethodNotAllowedError
 from actask_cli.client.models import Project, ProjectCatalogResult, ProjectListResult, ProjectResult
 from actask_cli.commands import projects
 from actask_cli.config.profiles import ServerProfile
@@ -145,6 +145,22 @@ def test_projects_show_preserves_forbidden_response(monkeypatch) -> None:
 
     assert result.exit_code == 4
     assert result.stderr == "You do not have permission to perform this action.\n"
+
+
+def test_projects_show_reports_contract_incompatibility_without_retrying(monkeypatch) -> None:
+    class ContractFailureClient(FakeClient):
+        def show_project(self, project_id: str) -> ProjectResult:
+            raise MethodNotAllowedError("req-method")
+
+    credentials = FakeCredentialStore()
+    _install_fakes(monkeypatch, ContractFailureClient(), credentials)
+
+    result = runner.invoke(app, ["projects", "show", "project-1", "--json"])
+
+    assert result.exit_code == 7
+    assert result.stderr == (
+        "Actask API contract error: this CLI command is not supported by the server endpoint.\n"
+    )
 
 
 def test_projects_columns_and_fields_expose_project_configuration(monkeypatch) -> None:

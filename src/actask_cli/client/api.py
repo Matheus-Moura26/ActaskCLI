@@ -12,6 +12,7 @@ from actask_cli.client.errors import (
     ConflictError,
     ForbiddenError,
     InvalidInputError,
+    MethodNotAllowedError,
     NetworkError,
     NotFoundError,
     ServerError,
@@ -103,7 +104,7 @@ class ActaskApiClient:
         )
 
     def show_project(self, project_id: str) -> ProjectResult:
-        response = self._request("GET", f"projects/{project_id}")
+        response = self._request("GET", f"task-loading/v1/projects/{project_id}")
         request_id = _request_id(response)
         return ProjectResult(
             project=Project.from_payload(_payload(response), request_id),
@@ -215,6 +216,8 @@ def _response_error(response: httpx.Response) -> ApiError:
         return NotFoundError(request_id)
     if response.status_code == 409:
         return ConflictError(request_id)
+    if response.status_code == 405:
+        return MethodNotAllowedError(request_id)
     return ServerError(response.status_code, request_id)
 
 

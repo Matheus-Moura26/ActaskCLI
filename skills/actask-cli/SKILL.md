@@ -52,7 +52,7 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 
 - Exit code `3` / `401`: stop. Tell the user to run `actask login`; do not retry with another identity or credential.
 - Exit code `4` / `403`: stop. State that the backend denied the action; do not probe IDs, filter locally, or attempt a bypass.
-- Exit code `2`, `5`, `6`, or `7`: stop before a write. Explain the non-sensitive error and ask for corrected input or a later retry.
+- Exit code `2`, `5`, `6`, or `7`: stop before a write. Explain the non-sensitive error and ask for corrected input or a later retry. In particular, code `7` can mean either network/server failure or an API-contract incompatibility (such as HTTP 405); do not misrepresent it as a successful read or retry it as a write.
 - Any destructive, ambiguous, broad, or irreversible request: do not execute it. Ask the user to clarify the exact target and intended effect.
 
 Never expose credentials in prompts, output, examples, logs, fixtures, command-line arguments, or commits. The backend, not this Skill, decides authorization for every request.

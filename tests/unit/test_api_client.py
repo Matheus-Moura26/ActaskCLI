@@ -9,6 +9,7 @@ from actask_cli.client.errors import (
     ExitCode,
     ForbiddenError,
     InvalidInputError,
+    MethodNotAllowedError,
     NetworkError,
     NotFoundError,
     ServerError,
@@ -79,6 +80,7 @@ def test_client_sends_login_body_and_typed_authenticated_requests() -> None:
         (403, ForbiddenError, ExitCode.FORBIDDEN),
         (404, NotFoundError, ExitCode.NOT_FOUND),
         (409, ConflictError, ExitCode.CONFLICT),
+        (405, MethodNotAllowedError, ExitCode.NETWORK_OR_SERVER),
         (422, InvalidInputError, ExitCode.INVALID_INPUT),
         (500, ServerError, ExitCode.NETWORK_OR_SERVER),
     ],
@@ -140,7 +142,7 @@ def test_client_reads_projects_from_the_authorized_routes() -> None:
     assert shown.request_id == "req-show"
     assert [(request.method, request.url.path) for request in requests] == [
         ("GET", "/projects"),
-        ("GET", "/projects/project-1"),
+        ("GET", "/task-loading/v1/projects/project-1"),
     ]
     assert all(request.headers["X-Session-Token"] == SESSION_TOKEN for request in requests)
 

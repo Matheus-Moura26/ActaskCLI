@@ -10,7 +10,7 @@ Data commands support `--json` and return this envelope on stdout:
 {"data": {}, "meta": {"request_id": null}, "error": null}
 ```
 
-Diagnostics go to stderr. Exit codes: `0` success, `2` invalid input, `3` not authenticated, `4` forbidden, `5` not found, `6` conflict or invalid state, and `7` network or server failure.
+Diagnostics go to stderr. Exit codes: `0` success, `2` invalid input, `3` not authenticated, `4` forbidden, `5` not found, `6` conflict or invalid state, and `7` network/server failure or an API-contract incompatibility. A 405 is reported as a contract incompatibility, never as a successful read.
 
 ## Session
 
