@@ -139,6 +139,11 @@ def update_task(
     description: str | None = typer.Option(None, help="New task description."),
     sprint: int | None = typer.Option(None, min=0, help="New sprint number."),
     column_id: str | None = typer.Option(None, help="New column ID."),
+    position: int | None = typer.Option(
+        None,
+        min=0,
+        help="Zero-based position in the target column; omitted means the end.",
+    ),
     assignee_id: str | None = typer.Option(None, help="New assignee user ID."),
     priority: str | None = typer.Option(None, help="New task priority."),
     issue_type: str | None = typer.Option(None, "--issue-type", help="New issue type."),
@@ -149,6 +154,8 @@ def update_task(
     """Update one task after explicit confirmation, unless dry-running."""
 
     normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    if position is not None and column_id is None:
+        _exit("--position requires --column-id.", ExitCode.INVALID_INPUT)
     payload = _update_payload(
         title, description, sprint, column_id, assignee_id, priority, issue_type
     )
@@ -163,7 +170,16 @@ def update_task(
         )
     if dry_run:
         _write_dry_run(
-            {"move": {"column_id": move_column_id}} if move_column_id is not None else payload,
+            (
+                {
+                    "move": {
+                        "column_id": move_column_id,
+                        **({"position": position} if position is not None else {}),
+                    }
+                }
+                if move_column_id is not None
+                else payload
+            ),
             json_output,
         )
         return
@@ -176,7 +192,7 @@ def update_task(
     try:
         with _client(profile.server_url, session_token) as client:
             if move_column_id is not None:
-                result = client.move_task(normalized_task_id, move_column_id)
+                result = client.move_task(normalized_task_id, move_column_id, position)
             else:
                 result = client.update_task(normalized_task_id, payload)
     except UnauthenticatedError as error:

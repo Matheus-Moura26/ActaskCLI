@@ -44,9 +44,9 @@
 
 ### AD-009 - Movimentacao usa a rota especializada
 
-**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com apenas `column_id`; a API coloca a task no fim da coluna alvo. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
+**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com o contrato canonico de ordenacao: revisoes esperadas da coluna de origem e destino e os anchors `before_task_id`/`after_task_id`. A CLI consulta apenas rotas autorizadas para montar esse payload. Sem `--position`, a task e inserida no fim; com `--position`, usa indice base-zero na coluna destino. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
 
-**Reason:** A rota especializada registra historico, worklog e transicoes de status. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Reordenacao de toda a coluna continua fora do comando de atualizacao de uma unica task.
+**Reason:** A rota especializada registra historico, worklog, transicoes de status e valida concorrencia. O payload ancorado evita o comportamento legado append-only, que podia deixar posicoes duplicadas ou incorretas. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Nenhuma alteracao no backend e necessaria para este fluxo.
 
 ## Validation Remediation
 
@@ -60,10 +60,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Post-v1 remediation: safe task movement
-- **Completed**: `tasks update --column-id` delegates to the canonical move route.
+- **Phase / Task**: MMS-138 — CLI ordered task movement
+- **Completed**: CLI movement resolves authorized ordering revisions and anchors, supports explicit zero-based `--position`, and sends only the canonical move request. Backend unchanged.
 - **In-progress** (file:line): none
-- **Next step**: Review and release the CLI separately from the API/frontend stage deployment.
+- **Next step**: Independent verification and release of the CLI to stage; main remains untouched.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/cli-move-stage`
+- **Branch**: `codex/mms138-cli-stage`
