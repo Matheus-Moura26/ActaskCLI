@@ -54,6 +54,12 @@
 
 **Reason:** A rota generica `/projects/{project_id}` nao oferece GET no backend publicado; a rota versionada aplica o controle de acesso e entrega o `ProjectOut` esperado pela CLI.
 
+### AD-011 - Guardrail local de responsabilidade para escritas da CLI
+
+**Decision:** Antes de `actask tasks update`, a CLI consulta a identidade atual e a task. A operacao prossegue somente quando `assignee_id` e nulo ou corresponde ao usuario autenticado; caso contrario, encerra com codigo 4 e a mensagem `Você não é o responsável desta task`. A mesma verificacao cobre movimentacao porque ela usa o mesmo comando.
+
+**Reason:** A MMS-139 solicitou uma protecao de experiencia de uso exclusivamente na CLI. O backend continua sendo a autoridade final e nao foi alterado; portanto, esta verificacao nao substitui autorizacao server-side nem pretende proteger outros clientes.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -63,13 +69,20 @@
 - Provisionado `C:\Users\Acdev\RiderProjects\ActaskBack\.venv` apenas com dependencias locais necessarias (`requirements.txt`, `pytest` e `httpx`) para executar `tests/test_cli_v1_authorization.py`.
 - Execucao direta no backend concluida com sucesso: `6 passed` em `tests/test_cli_v1_authorization.py`.
 
+### 2026-08-03 - MMS-139 guardrail de responsavel
+
+- Adicionada verificacao previa de responsabilidade em `tasks update`, incluindo movimentacao/ordenacao.
+- Tasks sem responsavel e tasks atribuidas ao usuario autenticado continuam permitidas.
+- Tasks atribuidas a outra pessoa sao bloqueadas antes de qualquer escrita, com codigo 4 e mensagem definida.
+- `pytest -q`: `73 passed`; Ruff e mypy sem erros.
+
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: MMS-138 — CLI ordered task movement
-- **Completed**: `projects show` uses the versioned read endpoint; HTTP 405 has a safe diagnostic; CLI and Skill are aligned. CLI movement resolves authorized ordering revisions and anchors, supports explicit zero-based `--position`, and sends only the canonical move request. Backend unchanged.
+- **Phase / Task**: MMS-139 — CLI responsibility guardrail
+- **Completed**: `tasks update` reads the current identity and task before writing, allows unassigned/current-owner tasks, blocks other assignees with the stable forbidden message, and covers column movement through the same path. Backend and Skill unchanged.
 - **In-progress** (file:line): none
-- **Next step**: Install the promoted CLI and Skill locally after independent verification.
+- **Next step**: Independent verification, then release the CLI when authorized.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/mms138-promote-main`
+- **Branch**: `codex/mms139-cli-owner-guard`

@@ -6,6 +6,7 @@ from typing import NoReturn
 
 import typer
 
+from actask_cli.client.api import ActaskApiClient
 from actask_cli.client.errors import ApiError, ExitCode, UnauthenticatedError
 from actask_cli.client.models import Task
 from actask_cli.commands.auth import _active_session, _client, _delete_after_unauthenticated
@@ -157,7 +158,7 @@ def update_task(
     yes: bool = typer.Option(False, "--yes", help="Confirm the change without a prompt."),
     json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
 ) -> None:
-    """Update one task after explicit confirmation, unless dry-running."""
+    """Update one task after confirmation when unassigned or owned by this user."""
 
     normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
     if position is not None and column_id is None:
@@ -197,6 +198,10 @@ def update_task(
     credentials = CredentialStore()
     try:
         with _client(profile.server_url, session_token) as client:
+            _require_task_responsibility(client, normalized_task_id)
+            if not _confirm("Update this task?", yes):
+                _write_cancelled(json_output)
+                return
             if move_column_id is not None:
                 result = client.move_task(normalized_task_id, move_column_id, position)
             else:
@@ -276,6 +281,26 @@ def _update_payload(
 
 def _confirm(message: str, yes: bool) -> bool:
     return yes or typer.confirm(message)
+
+
+def _require_task_responsibility(client: ActaskApiClient, task_id: str) -> None:
+    """Block CLI writes unless the task is unassigned or owned by this user.
+
+    This is a CLI-side guardrail for the requested command behavior. The API
+    remains the authorization authority for every write request.
+    """
+
+    identity = client.whoami()
+    task = client.show_task(task_id).task
+    if "assignee_id" not in task.payload:
+        _exit(
+            "A CLI não conseguiu confirmar o responsável desta task.",
+            ExitCode.NETWORK_OR_SERVER,
+        )
+    assignee_id = task.payload["assignee_id"]
+    if assignee_id is None or assignee_id == identity.user.id:
+        return
+    _exit("Você não é o responsável desta task", ExitCode.FORBIDDEN)
 
 
 def _write_dry_run(payload: dict[str, object], json_output: bool) -> None:

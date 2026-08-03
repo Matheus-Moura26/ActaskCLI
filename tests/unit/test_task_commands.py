@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typer.testing import CliRunner
 
 from actask_cli.client.errors import ConflictError, ForbiddenError
-from actask_cli.client.models import Task, TaskListResult, TaskResult
+from actask_cli.client.models import IdentityResult, Task, TaskListResult, TaskResult, User
 from actask_cli.commands import tasks
 from actask_cli.config.profiles import ServerProfile
 from actask_cli.main import app
@@ -22,7 +22,16 @@ TASK = Task(
         "key": "EX-1",
         "title": "Example task",
         "project_id": "project-1",
+        "assignee_id": None,
     },
+)
+CURRENT_USER = User(
+    id="user-1",
+    name="Member User",
+    email="member@example.test",
+    is_master=False,
+    is_active=True,
+    permissions=("tasks.read",),
 )
 runner = CliRunner()
 
@@ -38,6 +47,7 @@ class FakeClient:
     foreign_project: bool = False
     foreign_task: bool = False
     conflict: bool = False
+    task_assignee_id: str | None = None
     payloads: list[dict[str, object]] = field(default_factory=list)
 
     def __enter__(self) -> FakeClient:
@@ -56,7 +66,17 @@ class FakeClient:
     def show_task(self, task_id: str) -> TaskResult:
         if self.foreign_task:
             raise ForbiddenError("req-foreign-task")
-        return TaskResult(TASK, "req-task")
+        task = Task(
+            id=TASK.id,
+            key=TASK.key,
+            title=TASK.title,
+            project_id=TASK.project_id,
+            payload={**TASK.payload, "assignee_id": self.task_assignee_id},
+        )
+        return TaskResult(task, "req-task")
+
+    def whoami(self) -> IdentityResult:
+        return IdentityResult(CURRENT_USER, "req-identity")
 
     def create_task(self, payload: dict[str, object]) -> TaskResult:
         self.payload = payload
@@ -324,6 +344,51 @@ def test_tasks_update_preserves_conflict_response(monkeypatch) -> None:
 
     assert result.exit_code == 6
     assert result.stderr == "Request conflicts with current Actask state.\n"
+
+
+def test_tasks_update_allows_an_unassigned_task(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "update", "task-1", "--title", "Updated", "--yes"])
+
+    assert result.exit_code == 0
+    assert client.payloads == [{"title": "Updated"}]
+
+
+def test_tasks_update_allows_task_assigned_to_current_user(monkeypatch) -> None:
+    client = FakeClient(task_assignee_id=CURRENT_USER.id)
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "update", "task-1", "--title", "Updated", "--yes"])
+
+    assert result.exit_code == 0
+    assert client.payloads == [{"title": "Updated"}]
+
+
+def test_tasks_update_rejects_task_assigned_to_another_user_before_writing(monkeypatch) -> None:
+    client = FakeClient(task_assignee_id="user-2")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "update", "task-1", "--title", "Updated", "--yes"])
+
+    assert result.exit_code == 4
+    assert result.stderr == "Você não é o responsável desta task\n"
+    assert client.payloads == []
+
+
+def test_tasks_move_rejects_task_assigned_to_another_user_before_writing(monkeypatch) -> None:
+    client = FakeClient(task_assignee_id="user-2")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        ["tasks", "update", "task-1", "--column-id", "column-2", "--yes"],
+    )
+
+    assert result.exit_code == 4
+    assert result.stderr == "Você não é o responsável desta task\n"
+    assert client.payloads == []
 
 
 def test_tasks_update_cancellation_does_not_mutate(monkeypatch) -> None:
