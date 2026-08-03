@@ -71,8 +71,8 @@ class FakeClient:
             raise ConflictError("req-conflict")
         return TaskResult(TASK, "req-update")
 
-    def move_task(self, task_id: str, column_id: str) -> TaskResult:
-        self.payload = {"column_id": column_id}
+    def move_task(self, task_id: str, column_id: str, position: int | None = None) -> TaskResult:
+        self.payload = {"column_id": column_id, "position": position}
         self.payloads.append(self.payload)
         if self.conflict:
             raise ConflictError("req-conflict")
@@ -414,8 +414,42 @@ def test_tasks_update_moves_column_with_canonical_route(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert client.payloads == [{"column_id": "column-2"}]
+    assert client.payloads == [{"column_id": "column-2", "position": None}]
     assert json.loads(result.output)["meta"] == {"request_id": "req-move"}
+
+
+def test_tasks_update_passes_explicit_position_to_move(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "update",
+            "task-1",
+            "--column-id",
+            "column-2",
+            "--position",
+            "0",
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert client.payloads == [{"column_id": "column-2", "position": 0}]
+
+
+def test_tasks_update_rejects_position_without_column(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "update", "task-1", "--position", "0", "--yes"])
+
+    assert result.exit_code == 2
+    assert result.stderr == "--position requires --column-id.\n"
+    assert client.payload is None
 
 
 def test_tasks_update_rejects_move_combined_with_other_fields_before_request(monkeypatch) -> None:

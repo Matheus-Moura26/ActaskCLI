@@ -161,21 +161,62 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
-    def move_task(self, task_id: str, column_id: str) -> TaskResult:
-        """Move a task through the backend's canonical movement workflow.
+    def move_task(
+        self,
+        task_id: str,
+        column_id: str,
+        position: int | None = None,
+    ) -> TaskResult:
+        """Move a task with the same ordered contract used by the web app.
 
-        Omitting ``position`` makes the backend place the task at the end of the
-        target column.  A single-task move must not reorder other tasks.
+        The CLI resolves the current task, column revisions and target order
+        through authorized read routes, then sends the backend's anchor-based
+        movement payload.  ``position=None`` means the end of the target
+        column; an explicit position is zero-based.
         """
 
-        response = self._request(
-            "PATCH", f"tasks/{task_id}/move", json_body={"column_id": column_id}
+        task_result = self.show_task(task_id)
+        task = task_result.task
+        columns_result = self.list_project_columns(task.project_id)
+        project_tasks = self._list_all_project_tasks(task.project_id)
+        move_payload = _build_move_payload(
+            task,
+            column_id,
+            columns_result.entries,
+            project_tasks,
+            position,
+            columns_result.request_id or task_result.request_id,
         )
+        response = self._request("PATCH", f"tasks/{task_id}/move", json_body=move_payload)
         request_id = _request_id(response)
         return TaskResult(
             task=Task.from_payload(_payload(response), request_id),
             request_id=request_id,
         )
+
+    def _list_all_project_tasks(self, project_id: str) -> tuple[Task, ...]:
+        """Read the complete authorized task order before an anchored move."""
+
+        page = 1
+        page_size = 100
+        collected: list[Task] = []
+        total: int | None = None
+        while total is None or len(collected) < total:
+            result = self.list_tasks(
+                {"project_id": project_id, "page": page, "page_size": page_size}
+            )
+            if total is None:
+                total = result.total
+            if not result.tasks:
+                raise ServerError(request_id=result.request_id)
+            collected.extend(result.tasks)
+            if len(collected) >= total:
+                break
+            next_page = result.page + 1
+            if next_page <= page:
+                raise ServerError(request_id=result.request_id)
+            page = next_page
+        return tuple(collected)
 
     def _project_catalog(self, path: str) -> ProjectCatalogResult:
         response = self._request("GET", path)
@@ -202,6 +243,70 @@ class ActaskApiClient:
 def _request_id(response: httpx.Response) -> str | None:
     request_id = response.headers.get("X-Request-ID")
     return request_id if isinstance(request_id, str) else None
+
+
+def _build_move_payload(
+    task: Task,
+    target_column_id: str,
+    columns: tuple[Mapping[str, object], ...],
+    project_tasks: tuple[Task, ...],
+    position: int | None,
+    request_id: str | None,
+) -> dict[str, object]:
+    source_column_id = task.payload.get("column_id")
+    if not isinstance(source_column_id, str) or not source_column_id:
+        raise ServerError(request_id=request_id)
+
+    revisions: dict[str, int] = {}
+    for column in columns:
+        column_id = column.get("id")
+        revision = column.get("ordering_revision")
+        if (
+            not isinstance(column_id, str)
+            or not isinstance(revision, int)
+            or isinstance(revision, bool)
+        ):
+            raise ServerError(request_id=request_id)
+        revisions[column_id] = revision
+
+    if source_column_id not in revisions or target_column_id not in revisions:
+        raise ServerError(request_id=request_id)
+
+    target_tasks = sorted(
+        (
+            item
+            for item in project_tasks
+            if item.id != task.id
+            and item.payload.get("column_id") == target_column_id
+            and item.payload.get("is_archived") is not True
+        ),
+        key=_task_order_key,
+    )
+    target_length = len(target_tasks)
+    insertion_position = target_length if position is None else position
+    if insertion_position < 0 or insertion_position > target_length:
+        raise InvalidInputError(400, request_id)
+
+    before_task = target_tasks[insertion_position] if insertion_position < target_length else None
+    after_task = target_tasks[insertion_position - 1] if insertion_position > 0 else None
+    return {
+        "column_id": target_column_id,
+        "expected_source_column_id": source_column_id,
+        "expected_source_ordering_revision": revisions[source_column_id],
+        "expected_target_ordering_revision": revisions[target_column_id],
+        "before_task_id": before_task.id if before_task else None,
+        "after_task_id": after_task.id if after_task else None,
+    }
+
+
+def _task_order_key(task: Task) -> tuple[int, str, str]:
+    position = task.payload.get("position")
+    created_at = task.payload.get("created_at")
+    return (
+        position if isinstance(position, int) and not isinstance(position, bool) else 0,
+        created_at if isinstance(created_at, str) else "",
+        task.id,
+    )
 
 
 def _response_error(response: httpx.Response) -> ApiError:

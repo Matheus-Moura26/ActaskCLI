@@ -222,15 +222,12 @@ def test_client_writes_tasks_to_the_authorized_routes() -> None:
     ) as client:
         created = client.create_task({"project_id": "project-1", "title": "Example", "sprint": 1})
         updated = client.update_task("task-1", {"title": "Updated"})
-        moved = client.move_task("task-1", "column-2")
 
     assert created.task.to_data() == TASK
     assert updated.task.to_data() == TASK
-    assert moved.task.to_data() == TASK
     assert [(request.method, request.url.path) for request in requests] == [
         ("POST", "/tasks"),
         ("PUT", "/tasks/task-1"),
-        ("PATCH", "/tasks/task-1/move"),
     ]
     assert json.loads(requests[0].content) == {
         "project_id": "project-1",
@@ -238,4 +235,171 @@ def test_client_writes_tasks_to_the_authorized_routes() -> None:
         "sprint": 1,
     }
     assert json.loads(requests[1].content) == {"title": "Updated"}
-    assert json.loads(requests[2].content) == {"column_id": "column-2"}
+
+
+@pytest.mark.parametrize(
+    ("position", "expected_before", "expected_after"),
+    [
+        (None, None, "target-2"),
+        (0, "target-1", None),
+        (1, "target-2", "target-1"),
+    ],
+)
+def test_client_moves_task_with_ordering_revisions_and_anchors(
+    position: int | None,
+    expected_before: str | None,
+    expected_after: str | None,
+) -> None:
+    moving_task = {
+        **TASK,
+        "column_id": "column-1",
+        "position": 0,
+        "created_at": "2026-08-03T10:00:00Z",
+        "is_archived": False,
+    }
+    target_tasks = [
+        {
+            "id": "target-1",
+            "key": "EX-2",
+            "title": "First target",
+            "project_id": "project-1",
+            "column_id": "column-2",
+            "position": 0,
+            "created_at": "2026-08-03T10:01:00Z",
+            "is_archived": False,
+        },
+        {
+            "id": "target-2",
+            "key": "EX-3",
+            "title": "Second target",
+            "project_id": "project-1",
+            "column_id": "column-2",
+            "position": 1,
+            "created_at": "2026-08-03T10:02:00Z",
+            "is_archived": False,
+        },
+    ]
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/tasks/task-1":
+            return httpx.Response(200, json=moving_task)
+        if request.url.path == "/projects/project-1/columns":
+            return httpx.Response(
+                200,
+                json=[
+                    {"id": "column-1", "ordering_revision": 4},
+                    {"id": "column-2", "ordering_revision": 9},
+                ],
+            )
+        if request.url.path == "/tasks/query":
+            return httpx.Response(
+                200,
+                json={
+                    "items": target_tasks,
+                    "total": len(target_tasks),
+                    "page": 1,
+                    "page_size": 100,
+                    "query_text": None,
+                    "applied_order": [],
+                },
+            )
+        return httpx.Response(200, json={**moving_task, "column_id": "column-2"})
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        moved = client.move_task("task-1", "column-2", position)
+
+    assert moved.task.to_data()["column_id"] == "column-2"
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("GET", "/tasks/task-1"),
+        ("GET", "/projects/project-1/columns"),
+        ("POST", "/tasks/query"),
+        ("PATCH", "/tasks/task-1/move"),
+    ]
+    assert json.loads(requests[-1].content) == {
+        "column_id": "column-2",
+        "expected_source_column_id": "column-1",
+        "expected_source_ordering_revision": 4,
+        "expected_target_ordering_revision": 9,
+        "before_task_id": expected_before,
+        "after_task_id": expected_after,
+    }
+
+
+def test_client_reorders_within_column_without_anchoring_to_the_moving_task() -> None:
+    moving_task = {
+        **TASK,
+        "column_id": "column-2",
+        "position": 1,
+        "created_at": "2026-08-03T10:01:00Z",
+        "is_archived": False,
+    }
+    project_tasks = [
+        {
+            **moving_task,
+        },
+        {
+            "id": "target-1",
+            "key": "EX-2",
+            "title": "First target",
+            "project_id": "project-1",
+            "column_id": "column-2",
+            "position": 0,
+            "created_at": "2026-08-03T10:00:00Z",
+            "is_archived": False,
+        },
+        {
+            "id": "target-2",
+            "key": "EX-3",
+            "title": "Last target",
+            "project_id": "project-1",
+            "column_id": "column-2",
+            "position": 2,
+            "created_at": "2026-08-03T10:02:00Z",
+            "is_archived": False,
+        },
+    ]
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/tasks/task-1":
+            return httpx.Response(200, json=moving_task)
+        if request.url.path == "/projects/project-1/columns":
+            return httpx.Response(
+                200,
+                json=[
+                    {"id": "column-1", "ordering_revision": 4},
+                    {"id": "column-2", "ordering_revision": 9},
+                ],
+            )
+        if request.url.path == "/tasks/query":
+            return httpx.Response(
+                200,
+                json={
+                    "items": project_tasks,
+                    "total": len(project_tasks),
+                    "page": 1,
+                    "page_size": 100,
+                    "query_text": None,
+                    "applied_order": [],
+                },
+            )
+        return httpx.Response(200, json={**moving_task, "position": 0})
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        client.move_task("task-1", "column-2", position=0)
+
+    assert json.loads(requests[-1].content) == {
+        "column_id": "column-2",
+        "expected_source_column_id": "column-2",
+        "expected_source_ordering_revision": 9,
+        "expected_target_ordering_revision": 9,
+        "before_task_id": "target-1",
+        "after_task_id": None,
+    }

@@ -44,9 +44,9 @@
 
 ### AD-009 - Movimentacao usa a rota especializada
 
-**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com apenas `column_id`; a API coloca a task no fim da coluna alvo. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
+**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com o contrato canonico de ordenacao: revisoes esperadas da coluna de origem e destino e os anchors `before_task_id`/`after_task_id`. A CLI consulta apenas rotas autorizadas para montar esse payload. Sem `--position`, a task e inserida no fim; com `--position`, usa indice base-zero na coluna destino. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
 
-**Reason:** A rota especializada registra historico, worklog e transicoes de status. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Reordenacao de toda a coluna continua fora do comando de atualizacao de uma unica task.
+**Reason:** A rota especializada registra historico, worklog, transicoes de status e valida concorrencia. O payload ancorado evita o comportamento legado append-only, que podia deixar posicoes duplicadas ou incorretas. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Nenhuma alteracao no backend e necessaria para este fluxo.
 
 ### AD-010 - Detalhe de projeto usa a rota de leitura versionada
 
@@ -66,10 +66,10 @@
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Post-v1 remediation: project detail contract
-- **Completed**: `projects show` uses the versioned read endpoint; HTTP 405 has a safe diagnostic; CLI and Skill are aligned.
+- **Phase / Task**: MMS-138 — CLI ordered task movement
+- **Completed**: `projects show` uses the versioned read endpoint; HTTP 405 has a safe diagnostic; CLI and Skill are aligned. CLI movement resolves authorized ordering revisions and anchors, supports explicit zero-based `--position`, and sends only the canonical move request. Backend unchanged.
 - **In-progress** (file:line): none
-- **Next step**: Publish and install v1.0.3 after independent verification.
+- **Next step**: Install the promoted CLI and Skill locally after independent verification.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/cli-move-stage`
+- **Branch**: `codex/mms138-promote-main`
