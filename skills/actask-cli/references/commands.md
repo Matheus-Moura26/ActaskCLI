@@ -51,6 +51,10 @@ Use `columns` to resolve a visual board-column name to its ID. Use `fields` to d
 actask tasks list --project <project-id> --json [--page <number>] [--page-size <number>] [--query <text>] [--filter <field:operator:value>]
 actask tasks show <task-id> --json
 actask tasks create --project <project-id> --title <title> --sprint <number> --parent-id <parent-task-id> --dry-run --json
+actask tasks cases list <task-id> --json
+actask tasks cases fields <task-id> --json
+actask tasks cases create <task-id> --description <text> --field-values <json-object> --dry-run --json
+actask tasks cases update <task-id> <case-id> --field-values <json-object> --dry-run --json
 ```
 
 Use filters exactly as `field:operator:value`. A `403` means access was denied; do not interpret it as an empty result.
@@ -70,3 +74,13 @@ actask tasks update <task-id> --title <title> --yes --json
 ```
 
 Optional create fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, `--issue-type`, and `--parent-id`. Supplying `--parent-id` creates a subtask under that parent. First inspect the parent with `tasks show`, copy its `project_id` into `--project`, and do not use a subtask as the parent: Actask supports one hierarchy level and the backend verifies this invariant. The remaining optional update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses the canonical `PATCH /tasks/{id}/move` contract. Before sending it, the CLI reads the authorized task, project columns (including their ordering revisions), and all authorized tasks in the project to derive stable `before_task_id`/`after_task_id` anchors. This prevents the legacy append-only behavior from creating duplicate or incorrect positions. Use `--position <zero-based-index>` to choose a position in the target column; when omitted, the task is appended to the end. The backend remains the authority for authorization and optimistic-concurrency validation. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. `--position` requires `--column-id`. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request.
+Cases linked to a task use the following commands:
+
+```text
+actask tasks cases list <task-id> --json
+actask tasks cases fields <task-id> --json
+actask tasks cases create <task-id> [--description <text>] [--tenant-id <id>] [--person-id <id>] [--motivo <text>] [--solucao <text>] [--field-values <json-object>] --yes --json
+actask tasks cases update <task-id> <case-id> [--description <text>] [--tenant-id <id>] [--person-id <id>] [--clear-person-ids] [--is-done true|false] [--motivo <text>] [--solucao <text>] [--field-values <json-object>] --yes --json
+```
+
+Use `cases list` to obtain the case ID and `cases fields` to discover the project-scoped field definition IDs, types and options. `--field-values` is a JSON object keyed by those definition IDs. Before a write, the CLI reads the task for the existing responsibility guard, reads the project's case-field definitions, validates text/number/select-single/select-multi values and then lets the backend enforce authorization and persistence. Case writes require `--dry-run` or confirmation, and `--yes` suppresses the prompt. There is no case deletion command in this workflow.

@@ -60,6 +60,12 @@
 
 **Reason:** A MMS-139 solicitou uma protecao de experiencia de uso exclusivamente na CLI. O backend continua sendo a autoridade final e nao foi alterado; portanto, esta verificacao nao substitui autorizacao server-side nem pretende proteger outros clientes.
 
+### AD-012 - Operacoes de casos pela CLI usando o contrato existente
+
+**Decision:** Expor `tasks cases list`, `tasks cases fields`, `tasks cases create` e `tasks cases update`. A listagem de casos reutiliza o `GET /tasks/{task_id}` autorizado, enquanto campos, criacao e edicao usam `GET /projects/{project_id}/case-fields`, `POST /tasks/{task_id}/cases` e `PUT /tasks/{task_id}/cases/{case_id}`. Valores de campos personalizados sao recebidos como objeto JSON indexado pelo ID da definicao e validados localmente contra tipo e opcoes antes da escrita; o backend continua sendo a autoridade de permissao e persistencia.
+
+**Reason:** O backend publicado ja possui as rotas de casos e de definicoes de campos, evitando uma alteracao de contrato ou migration. A validacao local torna erros de tipo e de opcao acionaveis sem substituir a autorizacao server-side. A mesma verificacao de responsabilidade da CLI e aplicada antes de criar ou editar um caso.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -76,13 +82,20 @@
 - Tasks atribuidas a outra pessoa sao bloqueadas antes de qualquer escrita, com codigo 4 e mensagem definida.
 - `pytest -q`: `73 passed`; Ruff e mypy sem erros.
 
+### 2026-08-07 - MMS-150 casos pela CLI
+
+- Adicionados `tasks cases list`, `tasks cases fields`, `tasks cases create` e `tasks cases update` usando as rotas existentes do backend.
+- Criacao e edicao reutilizam o guardrail de responsabilidade da task, exigem confirmacao ou `--yes` e oferecem `--dry-run --json`.
+- Campos `text`, `number`, `select_single` e `select_multi` sao validados contra as definicoes e opcoes do projeto antes da escrita.
+- `pytest -q`: `89 passed`; Ruff, mypy e `git diff --check` sem erros.
+
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: MMS-139 — CLI responsibility guardrail
-- **Completed**: `tasks update` reads the current identity and task before writing, allows unassigned/current-owner tasks, blocks other assignees with the stable forbidden message, and covers column movement through the same path. Backend and Skill unchanged.
+- **Phase / Task**: MMS-150 — CLI cases CRUD and custom-field validation
+- **Completed**: `tasks update` reads the current identity and task before writing, allows unassigned/current-owner tasks, and blocks other assignees with the stable forbidden message. The CLI now lists task cases and project case fields, creates and updates cases, and validates case custom-field types/options before sending writes.
 - **In-progress** (file:line): none
 - **Next step**: Independent verification, then release the CLI when authorized.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/mms139-cli-owner-guard`
+- **Branch**: `codex/mms150-cli-cases`

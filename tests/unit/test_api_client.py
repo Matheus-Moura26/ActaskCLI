@@ -28,6 +28,16 @@ USER = {
 }
 PROJECT = {"id": "project-1", "name": "Example Project", "key": "EX"}
 TASK = {"id": "task-1", "key": "EX-1", "title": "Example task", "project_id": "project-1"}
+CASE = {
+    "id": "case-1",
+    "description": "Example case",
+    "tenant_id": "tenant-1",
+    "person_ids": [],
+    "is_done": False,
+    "motivo": "Broken",
+    "solucao": None,
+    "field_values": [],
+}
 
 
 def test_client_sends_login_body_and_typed_authenticated_requests() -> None:
@@ -235,6 +245,48 @@ def test_client_writes_tasks_to_the_authorized_routes() -> None:
         "sprint": 1,
     }
     assert json.loads(requests[1].content) == {"title": "Updated"}
+
+
+def test_client_reads_case_fields_and_writes_cases() -> None:
+    requests: list[httpx.Request] = []
+    case_fields = [
+        {
+            "id": "field-text",
+            "project_id": "project-1",
+            "key": "summary",
+            "label": "Summary",
+            "field_type": "text",
+            "settings_json": {},
+            "sort_order": 0,
+            "is_active": True,
+            "options": [],
+        }
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/projects/project-1/case-fields":
+            return httpx.Response(200, headers={"X-Request-ID": "req-fields"}, json=case_fields)
+        return httpx.Response(200, headers={"X-Request-ID": "req-case"}, json=CASE)
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        fields = client.list_project_case_fields("project-1")
+        created = client.create_case("task-1", {"description": "Created"})
+        updated = client.update_case("task-1", "case-1", {"motivo": "Updated"})
+
+    assert fields.entries == tuple(case_fields)
+    assert fields.request_id == "req-fields"
+    assert created.case.to_data() == CASE
+    assert updated.case.to_data() == CASE
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("GET", "/projects/project-1/case-fields"),
+        ("POST", "/tasks/task-1/cases"),
+        ("PUT", "/tasks/task-1/cases/case-1"),
+    ]
+    assert json.loads(requests[1].content) == {"description": "Created"}
+    assert json.loads(requests[2].content) == {"motivo": "Updated"}
 
 
 @pytest.mark.parametrize(

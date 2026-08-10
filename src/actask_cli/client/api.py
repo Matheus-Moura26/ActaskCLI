@@ -19,6 +19,8 @@ from actask_cli.client.errors import (
     UnauthenticatedError,
 )
 from actask_cli.client.models import (
+    Case,
+    CaseResult,
     IdentityResult,
     LoginResult,
     LogoutResult,
@@ -117,6 +119,9 @@ class ActaskApiClient:
     def list_project_field_registry(self, project_id: str) -> ProjectCatalogResult:
         return self._project_catalog(f"projects/{project_id}/task-fields/registry")
 
+    def list_project_case_fields(self, project_id: str) -> ProjectCatalogResult:
+        return self._project_catalog(f"projects/{project_id}/case-fields")
+
     def list_tasks(self, payload: Mapping[str, object]) -> TaskListResult:
         response = self._request("POST", "tasks/query", json_body=payload)
         request_id = _request_id(response)
@@ -158,6 +163,31 @@ class ActaskApiClient:
         request_id = _request_id(response)
         return TaskResult(
             task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
+    def create_case(self, task_id: str, payload: Mapping[str, object]) -> CaseResult:
+        response = self._request("POST", f"tasks/{task_id}/cases", json_body=payload)
+        request_id = _request_id(response)
+        return CaseResult(
+            case=Case.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
+    def update_case(
+        self,
+        task_id: str,
+        case_id: str,
+        payload: Mapping[str, object],
+    ) -> CaseResult:
+        response = self._request(
+            "PUT",
+            f"tasks/{task_id}/cases/{case_id}",
+            json_body=payload,
+        )
+        request_id = _request_id(response)
+        return CaseResult(
+            case=Case.from_payload(_payload(response), request_id),
             request_id=request_id,
         )
 

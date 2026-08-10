@@ -63,6 +63,8 @@ responsible user.
 
 For an ordered move, use `actask tasks update <task-id> --column-id <column-id> [--position <zero-based-index>]`. The CLI resolves the authorized task, project-column ordering revisions, and project task order before sending the canonical anchored move request. Omit `--position` to append to the target column. The backend still validates authorization and concurrency; the CLI must not call the API directly or attempt to reorder tasks with a `PUT` update.
 
+For cases linked to a task, use `actask tasks cases list <task-id> --json` to obtain case IDs and `actask tasks cases fields <task-id> --json` to obtain the project's field definition IDs, types and options. Use `actask tasks cases create` or `actask tasks cases update` with `--field-values <json-object>` for custom case fields. These writes read the task first, apply the same responsibility guard as other task writes, validate configured field types/options locally, and then rely on the backend for authorization and persistence. Use `--dry-run` before a write and `--yes --json` only after the normalized payload is confirmed.
+
 ## Required Stops
 
 - Exit code `3` / `401`: stop. Tell the user to run `actask login`; do not retry with another identity or credential.

@@ -137,6 +137,31 @@ class TaskResult:
     request_id: str | None
 
 
+@dataclass(frozen=True)
+class Case:
+    """A case linked to an Actask task."""
+
+    id: str
+    payload: Mapping[str, object]
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object], request_id: str | None) -> Case:
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            payload=dict(payload),
+        )
+
+    def to_data(self) -> dict[str, object]:
+        """Return the API representation for the stable JSON output envelope."""
+        return dict(self.payload)
+
+
+@dataclass(frozen=True)
+class CaseResult:
+    case: Case
+    request_id: str | None
+
+
 def _required_string(payload: Mapping[str, object], field: str, request_id: str | None) -> str:
     value = payload.get(field)
     if not isinstance(value, str):
