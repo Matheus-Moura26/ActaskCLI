@@ -49,6 +49,18 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 5. Compare the normalized dry-run payload with the authorized change. Ask again if fields, target, or effect differ.
 6. Execute the matching command with `--yes --json` only after confirmation. Do not add commands for deletion or other destructive operations.
 
+### Responsibility guard for existing tasks
+
+Before any write that changes an existing task (`tasks update`, `tasks attach`,
+`tasks cases create`, or `tasks cases update`), read the current identity and
+the task's current `assignee_id`. The CLI may proceed only when the task is
+unassigned or the authenticated user's ID matches `assignee_id`. If another
+user is responsible, stop before the write with exit code `4` and the exact
+message `Você não é o responsável desta task`. This is a CLI-side business
+rule; the backend remains the final authorization authority. `tasks create` is
+not subject to this guard because it creates a new task with no existing
+responsible user.
+
 For an ordered move, use `actask tasks update <task-id> --column-id <column-id> [--position <zero-based-index>]`. The CLI resolves the authorized task, project-column ordering revisions, and project task order before sending the canonical anchored move request. Omit `--position` to append to the target column. The backend still validates authorization and concurrency; the CLI must not call the API directly or attempt to reorder tasks with a `PUT` update.
 
 ## Required Stops
