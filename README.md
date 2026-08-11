@@ -14,6 +14,8 @@ O objetivo da v1 e oferecer login individual, consultas seguras e comandos essen
 - Listagem apenas de projetos acessiveis ao usuario.
 - Listagem e leitura de tasks respeitando associacao ao projeto e permissoes.
 - Criacao e atualizacao de tasks com confirmacao e suporte a `--dry-run`.
+- Listagem, criacao e atualizacao de casos vinculados a tasks, incluindo campos personalizados tipados.
+- Listagem e criacao de comentarios vinculados a tasks, com mencoes explicitas por ID.
 - Saida humana e estruturada por `--json`.
 - Skill `actask-cli` para agentes de IA operarem a CLI com guardrails.
 - Binarios para Windows, Linux e macOS, alem de instalacao para desenvolvimento via Git.
@@ -124,3 +126,47 @@ actask whoami
 ```
 
 `login` usa `https://actaskapi.bluefronte.com` como padrao; pressione Enter no campo Server URL para usa-la. Informe outra URL somente para staging ou ambiente proprio. A senha nao aparece no terminal. A autorizacao de cada comando continua sendo decidida pelo backend; um `403` significa que a conta autenticada nao possui permissao para aquela operacao.
+
+### Casos de uma task
+
+Use o ID da task para listar os casos existentes e os campos configurados no projeto:
+
+```bash
+actask tasks cases list <task-id> --json
+actask tasks cases fields <task-id> --json
+```
+
+Crie ou atualize um caso com confirmacao explicita. Os valores de campos personalizados devem ser um objeto JSON keyed pelos IDs retornados por `cases fields`:
+
+```bash
+actask tasks cases create <task-id> \
+  --description "Descricao do caso" \
+  --field-values '{"<field-definition-id>":"valor"}' \
+  --dry-run --json
+
+actask tasks cases update <task-id> <case-id> \
+  --field-values '{"<field-definition-id>":"novo valor"}' \
+  --yes --json
+```
+
+Antes da escrita, a CLI valida os tipos `text`, `number`, `select_single` e `select_multi`, além das opções configuradas, e o backend continua sendo a autoridade final de autorização.
+
+### Comentarios e mencoes em uma task
+
+Liste os comentarios existentes ou crie um comentario com mencoes. Repita `--mention-user-id` para marcar varias pessoas; o texto tambem pode conter mencoes `@label` que o backend resolve quando forem exatas:
+
+```bash
+actask tasks comments list <task-id> --json
+
+actask tasks comments create <task-id> \
+  --content "Favor revisar @Ana" \
+  --mention-user-id <user-id> \
+  --dry-run --json
+
+actask tasks comments create <task-id> \
+  --content "Resposta" \
+  --parent-id <comment-id> \
+  --yes --json
+```
+
+A criacao aplica o mesmo guardrail de responsabilidade das demais escritas em tasks existentes e nao possui comando de exclusao.
