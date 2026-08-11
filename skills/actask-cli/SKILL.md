@@ -48,7 +48,7 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 4. Compare the normalized dry-run payload with the authorized change. Ask again if fields, target, or effect differ.
 5. Execute the matching command with `--yes --json` only after confirmation. Do not add commands for deletion or other destructive operations.
 
-For an ordered move, use `actask tasks update <task-id> --column-id <column-id> [--position <zero-based-index>]`. The CLI resolves the authorized task, project-column ordering revisions, and project task order before sending the canonical anchored move request. Omit `--position` to append to the target column. The backend still validates authorization and concurrency; the CLI must not call the API directly or attempt to reorder tasks with a `PUT` update.
+For an ordered move, use `actask tasks update <task-id> --column-id <column-id> [--position <zero-based-index>]`. The CLI resolves the authorized task and project-column ordering revisions, then sends a protected position-based move request; the backend resolves the final order while holding its ordering locks. Omit `--position` to append to the target column. The backend still validates authorization and concurrency; the CLI must not call the API directly or attempt to reorder tasks with a `PUT` update. Transport failures report the method, relative path, and safe exception type without exposing credentials, and the CLI does not retry a move automatically.
 
 ## Required Stops
 

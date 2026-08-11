@@ -71,8 +71,16 @@ class ConflictError(ApiError):
 
 
 class NetworkError(ApiError):
-    def __init__(self) -> None:
-        super().__init__("Unable to reach Actask server.", ExitCode.NETWORK_OR_SERVER)
+    def __init__(self, method: str, path: str, cause_type: str) -> None:
+        normalized_method = method.upper()
+        normalized_path = "/" + path.lstrip("/")
+        super().__init__(
+            f"Unable to reach Actask server ({normalized_method} {normalized_path}; {cause_type}).",
+            ExitCode.NETWORK_OR_SERVER,
+        )
+        self.method = normalized_method
+        self.path = normalized_path
+        self.cause_type = cause_type
 
 
 class ServerError(ApiError):

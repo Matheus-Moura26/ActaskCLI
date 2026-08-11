@@ -166,12 +166,11 @@ class ActaskApiClient:
         column_id: str,
         position: int | None = None,
     ) -> TaskResult:
-        """Move a task with the same ordered contract used by the web app.
+        """Move a task with a protected position-based ordering contract.
 
-        The CLI resolves the current task, column revisions and target order
-        through authorized read routes, then sends the backend's anchor-based
-        movement payload.  ``position=None`` means the end of the target
-        column; an explicit position is zero-based.
+        The CLI resolves only the current task and column ordering revisions,
+        then lets the backend place the task using a zero-based position.
+        ``position=None`` means the end of the target column.
         """
 
         task_result = self.show_task(task_id)
@@ -207,7 +206,7 @@ class ActaskApiClient:
         try:
             response = self._client.request(method, path, json=json_body)
         except httpx.RequestError as error:
-            raise NetworkError() from error
+            raise NetworkError(method, path, type(error).__name__) from error
         if response.is_error:
             raise _response_error(response)
         return response
