@@ -73,7 +73,7 @@ actask tasks update <task-id> --title <title> --dry-run --json
 actask tasks update <task-id> --title <title> --yes --json
 ```
 
-Optional create fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, `--issue-type`, and `--parent-id`. Supplying `--parent-id` creates a subtask under that parent. First inspect the parent with `tasks show`, copy its `project_id` into `--project`, and do not use a subtask as the parent: Actask supports one hierarchy level and the backend verifies this invariant. The remaining optional update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses the canonical `PATCH /tasks/{id}/move` contract. Before sending it, the CLI reads the authorized task, project columns (including their ordering revisions), and all authorized tasks in the project to derive stable `before_task_id`/`after_task_id` anchors. This prevents the legacy append-only behavior from creating duplicate or incorrect positions. Use `--position <zero-based-index>` to choose a position in the target column; when omitted, the task is appended to the end. The backend remains the authority for authorization and optimistic-concurrency validation. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. `--position` requires `--column-id`. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request.
+Optional create fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, `--issue-type`, and `--parent-id`. Supplying `--parent-id` creates a subtask under that parent. First inspect the parent with `tasks show`, copy its `project_id` into `--project`, and do not use a subtask as the parent: Actask supports one hierarchy level and the backend verifies this invariant. The remaining optional update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses the canonical `PATCH /tasks/{id}/move` contract. Before sending it, the CLI reads only the authorized task and project columns (including their ordering revisions), then sends a protected zero-based `position` or `append_to_end` placement. The backend resolves the final order while holding its ordering locks; frontend clients that already send anchors remain supported. When `--position` is omitted, the task is appended to the end. The backend remains the authority for authorization and optimistic-concurrency validation. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. `--position` requires `--column-id`. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request. If transport fails, the CLI reports the HTTP method, relative path, and safe exception type; it does not retry the move automatically.
 Cases linked to a task use the following commands:
 
 ```text
@@ -84,3 +84,14 @@ actask tasks cases update <task-id> <case-id> [--description <text>] [--tenant-i
 ```
 
 Use `cases list` to obtain the case ID and `cases fields` to discover the project-scoped field definition IDs, types and options. `--field-values` is a JSON object keyed by those definition IDs. Before a write, the CLI reads the task for the existing responsibility guard, reads the project's case-field definitions, validates text/number/select-single/select-multi values and then lets the backend enforce authorization and persistence. Case writes require `--dry-run` or confirmation, and `--yes` suppresses the prompt. There is no case deletion command in this workflow.
+
+Task comments use the existing authorized comment routes:
+
+```text
+actask tasks comments list <task-id> --json
+actask tasks comments create <task-id> --content <text> --dry-run --json
+actask tasks comments create <task-id> --content <text> --mention-user-id <user-id> --yes --json
+actask tasks comments create <task-id> --content <text> --mention-user-id <user-id> --parent-id <comment-id> --yes --json
+```
+
+Repeat `--mention-user-id` for multiple people. The backend also resolves exact `@label` mentions in the content; explicit IDs are recommended for deterministic automation. Comment creation reads the current identity and task first, applies the same responsibility guard as other existing-task writes, and then sends `POST /tasks/{task-id}/comments` with `content`, `mentioned_user_ids`, and optional `parent_id`. `--dry-run` does not create a session or send a request. There is no comment deletion command in this workflow.

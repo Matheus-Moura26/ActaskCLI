@@ -9,6 +9,9 @@ from actask_cli.client.errors import ConflictError, ForbiddenError
 from actask_cli.client.models import (
     Case,
     CaseResult,
+    Comment,
+    CommentListResult,
+    CommentResult,
     IdentityResult,
     ProjectCatalogResult,
     Task,
@@ -55,6 +58,18 @@ CASE = Case(
         "motivo": "Broken",
         "solucao": None,
         "field_values": [],
+    },
+)
+
+COMMENT = Comment(
+    id="comment-1",
+    payload={
+        "id": "comment-1",
+        "user_id": "user-1",
+        "author_name": "Member User",
+        "content": "Please review @Ana",
+        "parent_id": None,
+        "created_at": "2026-08-11T12:00:00Z",
     },
 )
 
@@ -110,6 +125,7 @@ class FakeClient:
     case_fields: tuple[dict[str, object], ...] = CASE_FIELDS
     created_case: Case | None = None
     updated_case: Case | None = None
+    created_comment: Comment | None = None
 
     def __enter__(self) -> FakeClient:
         return self
@@ -157,6 +173,14 @@ class FakeClient:
         if self.conflict:
             raise ConflictError("req-conflict")
         return TaskResult(TASK, "req-update")
+
+    def list_comments(self, task_id: str) -> CommentListResult:
+        return CommentListResult((COMMENT,), "req-comments")
+
+    def create_comment(self, task_id: str, payload: dict[str, object]) -> CommentResult:
+        self.payload = payload
+        self.created_comment = COMMENT
+        return CommentResult(COMMENT, "req-comment-create")
 
     def move_task(self, task_id: str, column_id: str, position: int | None = None) -> TaskResult:
         self.payload = {"column_id": column_id, "position": position}
@@ -637,6 +661,115 @@ def test_tasks_cases_list_exposes_case_ids_and_json_payload(monkeypatch) -> None
         "error": None,
         "meta": {"request_id": "req-task", "task_id": "task-1", "total": 1},
     }
+
+
+def test_tasks_comments_list_exposes_comment_ids_and_json_payload(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    human = runner.invoke(app, ["tasks", "comments", "list", "task-1"])
+    json_result = runner.invoke(app, ["tasks", "comments", "list", "task-1", "--json"])
+
+    assert human.exit_code == 0
+    assert human.output == "comment-1\tMember User\tPlease review @Ana\n1 comments.\n"
+    assert json.loads(json_result.output) == {
+        "data": [COMMENT.to_data()],
+        "error": None,
+        "meta": {"request_id": "req-comments", "task_id": "task-1", "total": 1},
+    }
+
+
+def test_tasks_comments_create_dry_run_includes_mentions_and_parent(monkeypatch) -> None:
+    def unexpected_network(*args: object, **kwargs: object) -> object:
+        raise AssertionError("dry-run must not construct a network client")
+
+    monkeypatch.setattr(tasks, "_client", unexpected_network)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "comments",
+            "create",
+            "task-1",
+            "--content",
+            "Please review @Ana",
+            "--mention-user-id",
+            "user-2",
+            "--mention-user-id",
+            "user-3",
+            "--parent-id",
+            "comment-0",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "data": {
+            "content": "Please review @Ana",
+            "mentioned_user_ids": ["user-2", "user-3"],
+            "parent_id": "comment-0",
+        },
+        "error": None,
+        "meta": {"dry_run": True},
+    }
+
+
+def test_tasks_comments_create_sends_mentions_after_responsibility_guard(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "comments",
+            "create",
+            "task-1",
+            "--content",
+            "Please review @Ana",
+            "--mention-user-id",
+            "user-2",
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert client.payload == {
+        "content": "Please review @Ana",
+        "mentioned_user_ids": ["user-2"],
+    }
+    assert json.loads(result.output) == {
+        "data": COMMENT.to_data(),
+        "error": None,
+        "meta": {"request_id": "req-comment-create"},
+    }
+
+
+def test_tasks_comments_create_rejects_other_assignee_before_writing(monkeypatch) -> None:
+    client = FakeClient(task_assignee_id="user-2")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "comments",
+            "create",
+            "task-1",
+            "--content",
+            "Please review",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 4
+    assert result.stderr == "Você não é o responsável desta task\n"
+    assert client.payload is None
+    assert client.created_comment is None
 
 
 def test_tasks_cases_fields_lists_project_definitions(monkeypatch) -> None:

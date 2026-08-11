@@ -52,7 +52,7 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 ### Responsibility guard for existing tasks
 
 Before any write that changes an existing task (`tasks update`, `tasks attach`,
-`tasks cases create`, or `tasks cases update`), read the current identity and
+`tasks cases create`, `tasks cases update`, or `tasks comments create`), read the current identity and
 the task's current `assignee_id`. The CLI may proceed only when the task is
 unassigned or the authenticated user's ID matches `assignee_id`. If another
 user is responsible, stop before the write with exit code `4` and the exact
@@ -61,9 +61,11 @@ rule; the backend remains the final authorization authority. `tasks create` is
 not subject to this guard because it creates a new task with no existing
 responsible user.
 
-For an ordered move, use `actask tasks update <task-id> --column-id <column-id> [--position <zero-based-index>]`. The CLI resolves the authorized task, project-column ordering revisions, and project task order before sending the canonical anchored move request. Omit `--position` to append to the target column. The backend still validates authorization and concurrency; the CLI must not call the API directly or attempt to reorder tasks with a `PUT` update.
-
 For cases linked to a task, use `actask tasks cases list <task-id> --json` to obtain case IDs and `actask tasks cases fields <task-id> --json` to obtain the project's field definition IDs, types and options. Use `actask tasks cases create` or `actask tasks cases update` with `--field-values <json-object>` for custom case fields. These writes read the task first, apply the same responsibility guard as other task writes, validate configured field types/options locally, and then rely on the backend for authorization and persistence. Use `--dry-run` before a write and `--yes --json` only after the normalized payload is confirmed.
+
+For an ordered move, use `actask tasks update <task-id> --column-id <column-id> [--position <zero-based-index>]`. The CLI resolves the authorized task and project-column ordering revisions, then sends a protected position-based move request; the backend resolves the final order while holding its ordering locks. Omit `--position` to append to the target column. The backend still validates authorization and concurrency; the CLI must not call the API directly or attempt to reorder tasks with a `PUT` update. Transport failures report the method, relative path, and safe exception type without exposing credentials, and the CLI does not retry a move automatically.
+
+For comments linked to a task, use `actask tasks comments list <task-id> --json` to inspect existing comments. Create a comment with `actask tasks comments create <task-id> --content <text> --mention-user-id <user-id> --dry-run --json`; repeat `--mention-user-id` for multiple people and use `--parent-id` for a reply. The backend can also resolve exact `@label` mentions in the content, but explicit user IDs are preferred for deterministic automation. Comment creation reads the task responsibility guard before writing, supports `--yes --json` after the dry-run is confirmed, and does not expose any delete operation.
 
 ## Required Stops
 

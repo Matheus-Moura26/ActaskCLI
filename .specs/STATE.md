@@ -44,9 +44,9 @@
 
 ### AD-009 - Movimentacao usa a rota especializada
 
-**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com o contrato canonico de ordenacao: revisoes esperadas da coluna de origem e destino e os anchors `before_task_id`/`after_task_id`. A CLI consulta apenas rotas autorizadas para montar esse payload. Sem `--position`, a task e inserida no fim; com `--position`, usa indice base-zero na coluna destino. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
+**Decision:** `actask tasks update --column-id` chama `PATCH /tasks/{id}/move` com as revisoes esperadas da coluna de origem e destino e uma colocacao protegida por `position` ou `append_to_end`. A CLI consulta apenas a task e as colunas autorizadas para montar esse payload. Sem `--position`, a task e inserida no fim; com `--position`, usa indice base-zero na coluna destino. A CLI recusa combinar a movimentacao com outras atualizacoes na mesma chamada.
 
-**Reason:** A rota especializada registra historico, worklog, transicoes de status e valida concorrencia. O payload ancorado evita o comportamento legado append-only, que podia deixar posicoes duplicadas ou incorretas. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Nenhuma alteracao no backend e necessaria para este fluxo.
+**Reason:** A rota especializada registra historico, worklog, transicoes de status e valida concorrencia enquanto o backend resolve a ordem sob seus locks. Recusar a combinacao evita que uma atualizacao via `PUT` seja persistida se o movimento posterior falhar. Nenhuma alteracao no backend e necessaria para este fluxo.
 
 ### AD-010 - Detalhe de projeto usa a rota de leitura versionada
 
@@ -65,6 +65,12 @@
 **Decision:** Expor `tasks cases list`, `tasks cases fields`, `tasks cases create` e `tasks cases update`. A listagem de casos reutiliza o `GET /tasks/{task_id}` autorizado, enquanto campos, criacao e edicao usam `GET /projects/{project_id}/case-fields`, `POST /tasks/{task_id}/cases` e `PUT /tasks/{task_id}/cases/{case_id}`. Valores de campos personalizados sao recebidos como objeto JSON indexado pelo ID da definicao e validados localmente contra tipo e opcoes antes da escrita; o backend continua sendo a autoridade de permissao e persistencia.
 
 **Reason:** O backend publicado ja possui as rotas de casos e de definicoes de campos, evitando uma alteracao de contrato ou migration. A validacao local torna erros de tipo e de opcao acionaveis sem substituir a autorizacao server-side. A mesma verificacao de responsabilidade da CLI e aplicada antes de criar ou editar um caso.
+
+### AD-013 - Comentarios e mencoes pela CLI usam o contrato existente
+
+**Decision:** Expor `tasks comments list` e `tasks comments create`. A listagem usa `GET /tasks/{task_id}/comments`; a criacao usa `POST /tasks/{task_id}/comments` com `content`, `mentioned_user_ids` repetiveis via `--mention-user-id` e `parent_id` opcional. O texto continua podendo conter mencoes `@label`, resolvidas pelo backend.
+
+**Reason:** O backend publicado ja persiste comentarios, replies e notificacoes de mencao. A CLI apenas normaliza o payload, oferece `--dry-run --json`, aplica o guardrail local de responsabilidade antes da escrita e deixa a autorizacao e a resolucao final de usuarios no backend.
 
 ## Validation Remediation
 
@@ -89,13 +95,20 @@
 - Campos `text`, `number`, `select_single` e `select_multi` sao validados contra as definicoes e opcoes do projeto antes da escrita.
 - `pytest -q`: `89 passed`; Ruff, mypy e `git diff --check` sem erros.
 
+### 2026-08-11 - MMS-161 comentarios e mencoes pela CLI
+
+- Adicionados `tasks comments list` e `tasks comments create`, com replies via `--parent-id` e multiplas mencoes via `--mention-user-id`.
+- A criacao aplica `--dry-run --json`, confirmacao/`--yes` e o guardrail de responsabilidade antes do `POST`.
+- O cliente tipado cobre `GET/POST /tasks/{task_id}/comments`; `@label` continua suportado pelo contrato server-side.
+- `pytest -q`: `86 passed`; Ruff, mypy, build e `git diff --check` devem permanecer sem erros antes do push para stage.
+
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: MMS-150 — CLI cases CRUD and custom-field validation
-- **Completed**: `tasks update` reads the current identity and task before writing, allows unassigned/current-owner tasks, and blocks other assignees with the stable forbidden message. The CLI now lists task cases and project case fields, creates and updates cases, and validates case custom-field types/options before sending writes.
+- **Phase / Task**: MMS-161 — CLI comments and mentions
+- **Completed**: `tasks update` uses the protected stage movement contract; the CLI lists and edits cases with typed custom-field validation and lists/creates task comments with replies and explicit mentions. Existing-task writes read responsibility before sending the backend request.
 - **In-progress** (file:line): none
 - **Next step**: Independent verification, then release the CLI when authorized.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/mms150-cli-cases`
+- **Branch**: `codex/mms161-cli-comments-stage`

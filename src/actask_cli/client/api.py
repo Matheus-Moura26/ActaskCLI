@@ -21,6 +21,9 @@ from actask_cli.client.errors import (
 from actask_cli.client.models import (
     Case,
     CaseResult,
+    Comment,
+    CommentListResult,
+    CommentResult,
     IdentityResult,
     LoginResult,
     LogoutResult,
@@ -166,6 +169,25 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def list_comments(self, task_id: str) -> CommentListResult:
+        response = self._request("GET", f"tasks/{task_id}/comments")
+        request_id = _request_id(response)
+        return CommentListResult(
+            comments=tuple(
+                Comment.from_payload(_required_mapping(item, request_id), request_id)
+                for item in _payload_list(response)
+            ),
+            request_id=request_id,
+        )
+
+    def create_comment(self, task_id: str, payload: Mapping[str, object]) -> CommentResult:
+        response = self._request("POST", f"tasks/{task_id}/comments", json_body=payload)
+        request_id = _request_id(response)
+        return CommentResult(
+            comment=Comment.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def create_case(self, task_id: str, payload: Mapping[str, object]) -> CaseResult:
         response = self._request("POST", f"tasks/{task_id}/cases", json_body=payload)
         request_id = _request_id(response)
@@ -197,23 +219,20 @@ class ActaskApiClient:
         column_id: str,
         position: int | None = None,
     ) -> TaskResult:
-        """Move a task with the same ordered contract used by the web app.
+        """Move a task with a protected position-based ordering contract.
 
-        The CLI resolves the current task, column revisions and target order
-        through authorized read routes, then sends the backend's anchor-based
-        movement payload.  ``position=None`` means the end of the target
-        column; an explicit position is zero-based.
+        The CLI resolves only the current task and column ordering revisions,
+        then lets the backend place the task using a zero-based position.
+        ``position=None`` means the end of the target column.
         """
 
         task_result = self.show_task(task_id)
         task = task_result.task
         columns_result = self.list_project_columns(task.project_id)
-        project_tasks = self._list_all_project_tasks(task.project_id)
         move_payload = _build_move_payload(
             task,
             column_id,
             columns_result.entries,
-            project_tasks,
             position,
             columns_result.request_id or task_result.request_id,
         )
@@ -223,30 +242,6 @@ class ActaskApiClient:
             task=Task.from_payload(_payload(response), request_id),
             request_id=request_id,
         )
-
-    def _list_all_project_tasks(self, project_id: str) -> tuple[Task, ...]:
-        """Read the complete authorized task order before an anchored move."""
-
-        page = 1
-        page_size = 100
-        collected: list[Task] = []
-        total: int | None = None
-        while total is None or len(collected) < total:
-            result = self.list_tasks(
-                {"project_id": project_id, "page": page, "page_size": page_size}
-            )
-            if total is None:
-                total = result.total
-            if not result.tasks:
-                raise ServerError(request_id=result.request_id)
-            collected.extend(result.tasks)
-            if len(collected) >= total:
-                break
-            next_page = result.page + 1
-            if next_page <= page:
-                raise ServerError(request_id=result.request_id)
-            page = next_page
-        return tuple(collected)
 
     def _project_catalog(self, path: str) -> ProjectCatalogResult:
         response = self._request("GET", path)
@@ -264,7 +259,7 @@ class ActaskApiClient:
         try:
             response = self._client.request(method, path, json=json_body)
         except httpx.RequestError as error:
-            raise NetworkError() from error
+            raise NetworkError(method, path, type(error).__name__) from error
         if response.is_error:
             raise _response_error(response)
         return response
@@ -279,7 +274,6 @@ def _build_move_payload(
     task: Task,
     target_column_id: str,
     columns: tuple[Mapping[str, object], ...],
-    project_tasks: tuple[Task, ...],
     position: int | None,
     request_id: str | None,
 ) -> dict[str, object]:
@@ -302,41 +296,17 @@ def _build_move_payload(
     if source_column_id not in revisions or target_column_id not in revisions:
         raise ServerError(request_id=request_id)
 
-    target_tasks = sorted(
-        (
-            item
-            for item in project_tasks
-            if item.id != task.id
-            and item.payload.get("column_id") == target_column_id
-            and item.payload.get("is_archived") is not True
-        ),
-        key=_task_order_key,
-    )
-    target_length = len(target_tasks)
-    insertion_position = target_length if position is None else position
-    if insertion_position < 0 or insertion_position > target_length:
-        raise InvalidInputError(400, request_id)
-
-    before_task = target_tasks[insertion_position] if insertion_position < target_length else None
-    after_task = target_tasks[insertion_position - 1] if insertion_position > 0 else None
-    return {
+    payload: dict[str, object] = {
         "column_id": target_column_id,
         "expected_source_column_id": source_column_id,
         "expected_source_ordering_revision": revisions[source_column_id],
         "expected_target_ordering_revision": revisions[target_column_id],
-        "before_task_id": before_task.id if before_task else None,
-        "after_task_id": after_task.id if after_task else None,
     }
-
-
-def _task_order_key(task: Task) -> tuple[int, str, str]:
-    position = task.payload.get("position")
-    created_at = task.payload.get("created_at")
-    return (
-        position if isinstance(position, int) and not isinstance(position, bool) else 0,
-        created_at if isinstance(created_at, str) else "",
-        task.id,
-    )
+    if position is None:
+        payload["append_to_end"] = True
+    else:
+        payload["position"] = position
+    return payload
 
 
 def _response_error(response: httpx.Response) -> ApiError:

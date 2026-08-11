@@ -11,14 +11,16 @@ import typer
 
 from actask_cli.client.api import ActaskApiClient
 from actask_cli.client.errors import ApiError, ExitCode, ServerError, UnauthenticatedError
-from actask_cli.client.models import Case, Task
+from actask_cli.client.models import Case, Comment, Task
 from actask_cli.commands.auth import _active_session, _client, _delete_after_unauthenticated
 from actask_cli.commands.projects import _write_json
 from actask_cli.config.credentials import CredentialStore
 
 app = typer.Typer(help="Read and modify tasks available to the active Actask user.")
 cases_app = typer.Typer(help="List and modify cases linked to a task.")
+comments_app = typer.Typer(help="List and create comments linked to a task.")
 app.add_typer(cases_app, name="cases")
+app.add_typer(comments_app, name="comments")
 
 
 @app.command("list")
@@ -217,6 +219,98 @@ def update_task(
     except ApiError as error:
         _exit_api_error(error)
     _write_task_result(result.task, result.request_id, json_output)
+
+
+@comments_app.command("list")
+def list_comments(
+    task_id: str,
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
+    """List the comments linked to one backend-authorized task."""
+
+    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    profile, session_token = _active_session()
+    credentials = CredentialStore()
+    try:
+        with _client(profile.server_url, session_token) as client:
+            result = client.list_comments(normalized_task_id)
+    except UnauthenticatedError as error:
+        _delete_after_unauthenticated(credentials, profile)
+        _exit_api_error(error)
+    except ApiError as error:
+        _exit_api_error(error)
+
+    if json_output:
+        _write_json(
+            [comment.to_data() for comment in result.comments],
+            {
+                "task_id": normalized_task_id,
+                "total": len(result.comments),
+                "request_id": result.request_id,
+            },
+        )
+        return
+    for comment in result.comments:
+        typer.echo(f"{comment.id}\t{_comment_human_summary(comment)}")
+    typer.echo(f"{len(result.comments)} comments.")
+
+
+@comments_app.command("create")
+def create_comment(
+    task_id: str,
+    content: str = typer.Option(
+        ...,
+        "--content",
+        help="Comment text. Include @label in the text or pass explicit user IDs.",
+    ),
+    mention_user_ids: list[str] = typer.Option(
+        [],
+        "--mention-user-id",
+        help="User ID to mention; repeat for multiple people.",
+    ),
+    parent_id: str | None = typer.Option(
+        None,
+        "--parent-id",
+        help="Parent comment ID when replying to an existing comment.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the normalized payload only."),
+    yes: bool = typer.Option(False, "--yes", help="Confirm the change without a prompt."),
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
+    """Create a comment and optional user mentions after confirmation."""
+
+    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    payload: dict[str, object] = {
+        "content": _require_non_empty(content, "Comment content is required."),
+        "mentioned_user_ids": _normalize_user_ids(
+            mention_user_ids,
+            "A mention user ID cannot be empty.",
+        ),
+    }
+    if parent_id is not None:
+        payload["parent_id"] = _require_non_empty(
+            parent_id,
+            "A parent comment ID cannot be empty.",
+        )
+    if dry_run:
+        _write_dry_run(payload, json_output)
+        return
+
+    profile, session_token = _active_session()
+    credentials = CredentialStore()
+    try:
+        with _client(profile.server_url, session_token) as client:
+            _require_task_responsibility(client, normalized_task_id)
+            if not _confirm("Create this comment?", yes):
+                _write_cancelled(json_output)
+                return
+            result = client.create_comment(normalized_task_id, payload)
+    except UnauthenticatedError as error:
+        _delete_after_unauthenticated(credentials, profile)
+        _exit_api_error(error)
+    except ApiError as error:
+        _exit_api_error(error)
+    _write_comment_result(result.comment, result.request_id, json_output)
 
 
 @cases_app.command("list")
@@ -516,6 +610,13 @@ def _normalize_person_ids(person_ids: list[str]) -> list[str]:
     return normalized
 
 
+def _normalize_user_ids(user_ids: list[str], message: str) -> list[str]:
+    normalized: list[str] = []
+    for user_id in user_ids:
+        normalized.append(_require_non_empty(user_id, message))
+    return normalized
+
+
 def _parse_boolean(value: str, option_name: str) -> bool:
     normalized = value.strip().casefold()
     if normalized in {"true", "1", "yes", "sim"}:
@@ -765,6 +866,19 @@ def _write_case_result(case: Case, request_id: str | None, json_output: bool) ->
         _write_json(case.to_data(), {"request_id": request_id})
         return
     typer.echo(f"{case.id}\t{_case_human_summary(case)}")
+
+
+def _write_comment_result(comment: Comment, request_id: str | None, json_output: bool) -> None:
+    if json_output:
+        _write_json(comment.to_data(), {"request_id": request_id})
+        return
+    typer.echo(f"{comment.id}\t{_comment_human_summary(comment)}")
+
+
+def _comment_human_summary(comment: Comment) -> str:
+    author = comment.payload.get("author_name") or comment.payload.get("user_id") or ""
+    content = " ".join(str(comment.payload.get("content", "")).split())
+    return f"{author}\t{content}"
 
 
 def _require_non_empty(value: str, message: str) -> str:

@@ -162,6 +162,37 @@ class CaseResult:
     request_id: str | None
 
 
+@dataclass(frozen=True)
+class Comment:
+    """A comment returned by the Actask API."""
+
+    id: str
+    payload: Mapping[str, object]
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, object], request_id: str | None) -> Comment:
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            payload=dict(payload),
+        )
+
+    def to_data(self) -> dict[str, object]:
+        """Return the API representation for the stable JSON output envelope."""
+        return dict(self.payload)
+
+
+@dataclass(frozen=True)
+class CommentListResult:
+    comments: tuple[Comment, ...]
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class CommentResult:
+    comment: Comment
+    request_id: str | None
+
+
 def _required_string(payload: Mapping[str, object], field: str, request_id: str | None) -> str:
     value = payload.get(field)
     if not isinstance(value, str):
