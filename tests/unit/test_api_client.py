@@ -102,7 +102,10 @@ def test_client_maps_http_errors_to_stable_exit_codes(status_code, error_type, e
 
 
 def test_client_maps_timeout_to_network_error() -> None:
+    requests: list[httpx.Request] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
         raise httpx.ReadTimeout("timed out", request=request)
 
     client = ActaskApiClient(BASE_URL, transport=httpx.MockTransport(handler))
@@ -112,6 +115,13 @@ def test_client_maps_timeout_to_network_error() -> None:
 
     assert error.value.exit_code == ExitCode.NETWORK_OR_SERVER
     assert error.value.status_code is None
+    assert error.value.method == "GET"
+    assert error.value.path == "/auth/me"
+    assert error.value.cause_type == "ReadTimeout"
+    assert "GET /auth/me" in str(error.value)
+    assert "ReadTimeout" in str(error.value)
+    assert SESSION_TOKEN not in str(error.value)
+    assert len(requests) == 1
 
 
 def test_client_rejects_non_https_server_url() -> None:
@@ -238,17 +248,16 @@ def test_client_writes_tasks_to_the_authorized_routes() -> None:
 
 
 @pytest.mark.parametrize(
-    ("position", "expected_before", "expected_after"),
+    ("position", "expected_placement"),
     [
-        (None, None, "target-2"),
-        (0, "target-1", None),
-        (1, "target-2", "target-1"),
+        (None, {"append_to_end": True}),
+        (0, {"position": 0}),
+        (1, {"position": 1}),
     ],
 )
-def test_client_moves_task_with_ordering_revisions_and_anchors(
+def test_client_moves_task_with_ordering_revisions_without_project_prefetch(
     position: int | None,
-    expected_before: str | None,
-    expected_after: str | None,
+    expected_placement: dict[str, object],
 ) -> None:
     moving_task = {
         **TASK,
@@ -257,28 +266,6 @@ def test_client_moves_task_with_ordering_revisions_and_anchors(
         "created_at": "2026-08-03T10:00:00Z",
         "is_archived": False,
     }
-    target_tasks = [
-        {
-            "id": "target-1",
-            "key": "EX-2",
-            "title": "First target",
-            "project_id": "project-1",
-            "column_id": "column-2",
-            "position": 0,
-            "created_at": "2026-08-03T10:01:00Z",
-            "is_archived": False,
-        },
-        {
-            "id": "target-2",
-            "key": "EX-3",
-            "title": "Second target",
-            "project_id": "project-1",
-            "column_id": "column-2",
-            "position": 1,
-            "created_at": "2026-08-03T10:02:00Z",
-            "is_archived": False,
-        },
-    ]
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -294,18 +281,10 @@ def test_client_moves_task_with_ordering_revisions_and_anchors(
                 ],
             )
         if request.url.path == "/tasks/query":
-            return httpx.Response(
-                200,
-                json={
-                    "items": target_tasks,
-                    "total": len(target_tasks),
-                    "page": 1,
-                    "page_size": 100,
-                    "query_text": None,
-                    "applied_order": [],
-                },
-            )
-        return httpx.Response(200, json={**moving_task, "column_id": "column-2"})
+            raise AssertionError("move must not query project tasks")
+        if request.url.path == "/tasks/task-1/move":
+            return httpx.Response(200, json={**moving_task, "column_id": "column-2"})
+        raise AssertionError(f"unexpected request path: {request.url.path}")
 
     with ActaskApiClient(
         BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
@@ -316,17 +295,16 @@ def test_client_moves_task_with_ordering_revisions_and_anchors(
     assert [(request.method, request.url.path) for request in requests] == [
         ("GET", "/tasks/task-1"),
         ("GET", "/projects/project-1/columns"),
-        ("POST", "/tasks/query"),
         ("PATCH", "/tasks/task-1/move"),
     ]
-    assert json.loads(requests[-1].content) == {
+    expected_payload = {
         "column_id": "column-2",
         "expected_source_column_id": "column-1",
         "expected_source_ordering_revision": 4,
         "expected_target_ordering_revision": 9,
-        "before_task_id": expected_before,
-        "after_task_id": expected_after,
     }
+    expected_payload.update(expected_placement)
+    assert json.loads(requests[-1].content) == expected_payload
 
 
 def test_client_reorders_within_column_without_anchoring_to_the_moving_task() -> None:
@@ -337,31 +315,6 @@ def test_client_reorders_within_column_without_anchoring_to_the_moving_task() ->
         "created_at": "2026-08-03T10:01:00Z",
         "is_archived": False,
     }
-    project_tasks = [
-        {
-            **moving_task,
-        },
-        {
-            "id": "target-1",
-            "key": "EX-2",
-            "title": "First target",
-            "project_id": "project-1",
-            "column_id": "column-2",
-            "position": 0,
-            "created_at": "2026-08-03T10:00:00Z",
-            "is_archived": False,
-        },
-        {
-            "id": "target-2",
-            "key": "EX-3",
-            "title": "Last target",
-            "project_id": "project-1",
-            "column_id": "column-2",
-            "position": 2,
-            "created_at": "2026-08-03T10:02:00Z",
-            "is_archived": False,
-        },
-    ]
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -377,18 +330,10 @@ def test_client_reorders_within_column_without_anchoring_to_the_moving_task() ->
                 ],
             )
         if request.url.path == "/tasks/query":
-            return httpx.Response(
-                200,
-                json={
-                    "items": project_tasks,
-                    "total": len(project_tasks),
-                    "page": 1,
-                    "page_size": 100,
-                    "query_text": None,
-                    "applied_order": [],
-                },
-            )
-        return httpx.Response(200, json={**moving_task, "position": 0})
+            raise AssertionError("move must not query project tasks")
+        if request.url.path == "/tasks/task-1/move":
+            return httpx.Response(200, json={**moving_task, "position": 0})
+        raise AssertionError(f"unexpected request path: {request.url.path}")
 
     with ActaskApiClient(
         BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
@@ -400,6 +345,5 @@ def test_client_reorders_within_column_without_anchoring_to_the_moving_task() ->
         "expected_source_column_id": "column-2",
         "expected_source_ordering_revision": 9,
         "expected_target_ordering_revision": 9,
-        "before_task_id": "target-1",
-        "after_task_id": None,
+        "position": 0,
     }
