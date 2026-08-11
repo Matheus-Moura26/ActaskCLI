@@ -102,7 +102,10 @@ def test_client_maps_http_errors_to_stable_exit_codes(status_code, error_type, e
 
 
 def test_client_maps_timeout_to_network_error() -> None:
+    requests: list[httpx.Request] = []
+
     def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
         raise httpx.ReadTimeout("timed out", request=request)
 
     client = ActaskApiClient(BASE_URL, transport=httpx.MockTransport(handler))
@@ -112,6 +115,13 @@ def test_client_maps_timeout_to_network_error() -> None:
 
     assert error.value.exit_code == ExitCode.NETWORK_OR_SERVER
     assert error.value.status_code is None
+    assert error.value.method == "GET"
+    assert error.value.path == "/auth/me"
+    assert error.value.cause_type == "ReadTimeout"
+    assert "GET /auth/me" in str(error.value)
+    assert "ReadTimeout" in str(error.value)
+    assert SESSION_TOKEN not in str(error.value)
+    assert len(requests) == 1
 
 
 def test_client_rejects_non_https_server_url() -> None:
