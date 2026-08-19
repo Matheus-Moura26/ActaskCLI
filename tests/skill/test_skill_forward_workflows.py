@@ -78,6 +78,8 @@ def test_skill_documents_cli_only_and_required_stops() -> None:
     assert "actask projects columns <project-id> --json" in skill
     assert "--filter column:=:<column-id>" in reference
     assert "--parent-id <parent-task-id>" in reference
+    assert "assignee_name" in skill
+    assert "data.assignee_name" in reference
     assert "Before creating a subtask" in skill
     assert "<redacted-session-token>" not in skill + reference
     assert "https://github.com/Matheus-Moura26/ActaskCLI" in skill
