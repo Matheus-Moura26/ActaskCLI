@@ -91,7 +91,10 @@ def show_task(
     if json_output:
         _write_json(result.task.to_data(), {"request_id": result.request_id})
         return
-    typer.echo(f"{result.task.key}\t{result.task.title}\t{result.task.project_id}\t{result.task.id}")
+    typer.echo(
+        f"{result.task.key}\t{result.task.title}\t{result.task.project_id}"
+        f"\t{result.task.id}\t{result.task.assignee_name or ''}"
+    )
 
 
 @app.command("create")
@@ -858,7 +861,10 @@ def _write_task_result(task: Task, request_id: str | None, json_output: bool) ->
     if json_output:
         _write_json(task.to_data(), {"request_id": request_id})
         return
-    typer.echo(f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}")
+    typer.echo(
+        f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}"
+        f"\t{task.assignee_name or ''}"
+    )
 
 
 def _write_case_result(case: Case, request_id: str | None, json_output: bool) -> None:
@@ -889,7 +895,10 @@ def _require_non_empty(value: str, message: str) -> str:
 
 def _write_task_list(tasks: tuple[Task, ...], meta: dict[str, object]) -> None:
     for task in tasks:
-        typer.echo(f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}")
+        typer.echo(
+            f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}"
+            f"\t{task.assignee_name or ''}"
+        )
     typer.echo(f"Page {meta['page']} of {meta['total']} tasks.")
 
 

@@ -28,6 +28,15 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 4. Run `actask tasks show <task-id> --json` to inspect one task.
 5. Summarize only returned data. Do not infer access to projects or tasks that are not returned.
 
+## Task Assignee Names
+
+Task responses preserve `assignee_id` as the stable identifier and expose `assignee_name` as the display name. When a task is unassigned, `assignee_id` and `assignee_name` are `null`.
+
+1. For one task, run `actask tasks show <task-id> --json` and read `data.assignee_name`.
+2. For a task list, run `actask tasks list --project <project-id> --json` and read `assignee_name` from each object in `data`.
+3. Prefer `--json` for automation. In human-readable task output, the fifth tab-separated field is `assignee_name`; an empty field means that the task is unassigned.
+4. Never derive a person's name from `assignee_id` or make a separate user lookup when `assignee_name` is present in the task response.
+
 ## Ambiguous Counts And Lists
 
 1. Treat terms such as "pendentes", "abertas", "em andamento" and "status" as ambiguous unless the user identifies a column or a configured field option.

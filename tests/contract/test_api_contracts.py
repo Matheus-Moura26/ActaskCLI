@@ -102,7 +102,7 @@ class ApiContractTests(unittest.TestCase):
             {"id", "key", "current_sprint"} <= fixtures["projects.list.success.json"][0].keys()
         )
         self.assertTrue(
-            {"id", "key", "project_id", "is_archived"}
+            {"id", "key", "project_id", "is_archived", "assignee_id", "assignee_name"}
             <= fixtures["tasks.query.success.json"]["items"][0].keys()
         )
         self.assertTrue(
@@ -143,6 +143,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(page["page"], 1)
         self.assertEqual(page["page_size"], 25)
         self.assertEqual(page["items"][0]["project_id"], "project-1")
+        self.assertEqual(page["items"][0]["assignee_name"], "Member User")
         method, path, headers, body = self.server.requests[-1]
         self.assertEqual((method, path), ("POST", "/tasks/query"))
         self.assertEqual(headers["X-Session-Token"], REDACTED_SESSION)

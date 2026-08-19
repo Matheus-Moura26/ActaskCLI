@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from actask_cli.client.errors import ServerError
 
@@ -118,6 +118,21 @@ class Task:
     def to_data(self) -> dict[str, object]:
         """Return the API representation for the stable JSON output envelope."""
         return dict(self.payload)
+
+    @property
+    def assignee_name(self) -> str | None:
+        """Return the assignee name from either supported API representation."""
+
+        direct_name = self.payload.get("assignee_name")
+        if isinstance(direct_name, str):
+            return direct_name
+
+        assignee = self.payload.get("assignee")
+        if isinstance(assignee, Mapping):
+            nested_name = assignee.get("name")
+            if isinstance(nested_name, str):
+                return nested_name
+        return None
 
 
 @dataclass(frozen=True)

@@ -35,6 +35,7 @@ TASK = Task(
         "title": "Example task",
         "project_id": "project-1",
         "assignee_id": None,
+        "assignee_name": None,
     },
 )
 CURRENT_USER = User(
@@ -120,6 +121,7 @@ class FakeClient:
     foreign_task: bool = False
     conflict: bool = False
     task_assignee_id: str | None = None
+    task_assignee_name: str | None = None
     payloads: list[dict[str, object]] = field(default_factory=list)
     case_payloads: list[dict[str, object]] | None = None
     case_fields: tuple[dict[str, object], ...] = CASE_FIELDS
@@ -143,7 +145,11 @@ class FakeClient:
     def show_task(self, task_id: str) -> TaskResult:
         if self.foreign_task:
             raise ForbiddenError("req-foreign-task")
-        payload = {**TASK.payload, "assignee_id": self.task_assignee_id}
+        payload = {
+            **TASK.payload,
+            "assignee_id": self.task_assignee_id,
+            "assignee_name": self.task_assignee_name,
+        }
         if self.case_payloads is not None:
             payload["cases"] = self.case_payloads
         task = Task(
@@ -235,7 +241,7 @@ def test_tasks_list_uses_backend_filters_and_has_equivalent_json(monkeypatch) ->
     json_result = runner.invoke(app, ["tasks", "list", "--project", "project-1", "--json"])
 
     assert human.exit_code == 0
-    assert human.output == "EX-1\tExample task\tproject-1\ttask-1\nPage 2 of 1 tasks.\n"
+    assert human.output == "EX-1\tExample task\tproject-1\ttask-1\t\nPage 2 of 1 tasks.\n"
     assert client.payloads == [
         {
             "project_id": "project-1",
@@ -258,6 +264,24 @@ def test_tasks_list_uses_backend_filters_and_has_equivalent_json(monkeypatch) ->
             "total": 1,
         },
     }
+
+
+def test_task_assignee_name_accepts_nested_summary_payload() -> None:
+    task = Task(
+        id="task-1",
+        key="EX-1",
+        title="Example task",
+        project_id="project-1",
+        payload={
+            "id": "task-1",
+            "key": "EX-1",
+            "title": "Example task",
+            "project_id": "project-1",
+            "assignee": {"id": "user-2", "name": "Other User"},
+        },
+    )
+
+    assert task.assignee_name == "Other User"
 
 
 def test_tasks_list_rejects_foreign_project_with_forbidden_exit_code(monkeypatch) -> None:
@@ -292,7 +316,8 @@ def test_tasks_show_has_equivalent_human_and_json_output(monkeypatch) -> None:
     assert json_result.exit_code == 0
     assert human.output == (
         f"{payload['data']['key']}\t{payload['data']['title']}"
-        f"\t{payload['data']['project_id']}\t{payload['data']['id']}\n"
+        f"\t{payload['data']['project_id']}\t{payload['data']['id']}"
+        f"\t{payload['data']['assignee_name'] or ''}\n"
     )
     assert payload == {
         "data": TASK.to_data(),
@@ -343,7 +368,17 @@ def test_tasks_create_sends_normalized_payload_after_confirmation(monkeypatch) -
         "priority": "normal",
         "type": "task",
     }
-    assert result.output == "EX-1\tExample task\tproject-1\ttask-1\n"
+    assert result.output == "EX-1\tExample task\tproject-1\ttask-1\t\n"
+
+
+def test_tasks_show_includes_assignee_name_in_human_output(monkeypatch) -> None:
+    client = FakeClient(task_assignee_id="user-2", task_assignee_name="Other User")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "show", "task-1"])
+
+    assert result.exit_code == 0
+    assert result.output == "EX-1\tExample task\tproject-1\ttask-1\tOther User\n"
 
 
 def test_tasks_create_rejects_invalid_input_without_request(monkeypatch) -> None:

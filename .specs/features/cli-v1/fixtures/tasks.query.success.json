@@ -9,6 +9,7 @@
       "sprint": 1,
       "column_id": "column-todo",
       "assignee_id": "user-member",
+      "assignee_name": "Member User",
       "created_by": "user-member",
       "priority": "normal",
       "type": "task",

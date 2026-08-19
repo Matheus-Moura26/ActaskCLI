@@ -63,6 +63,17 @@ For an exact board column, use `--filter column:=:<column-id>`. For an exact con
 
 For counts, request a filtered page and read `meta.total`; `data.length` is only the current page. For a complete list, request subsequent pages until the collected count reaches `meta.total`.
 
+### Task assignee names
+
+The task response keeps the stable `assignee_id` and includes the display field `assignee_name`:
+
+```text
+actask tasks show <task-id> --json
+actask tasks list --project <project-id> --json
+```
+
+Read `data.assignee_name` for `tasks show` and `assignee_name` from each object in `data` for `tasks list`. In human-readable output, the columns are `key`, `title`, `project_id`, `task_id`, and `assignee_name`; the final column is empty when there is no assignee.
+
 ## Safe writes
 
 ```text
