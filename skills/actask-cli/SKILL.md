@@ -37,6 +37,16 @@ Task responses preserve `assignee_id` as the stable identifier and expose `assig
 3. Prefer `--json` for automation. In human-readable task output, the fifth tab-separated field is `assignee_name`; an empty field means that the task is unassigned.
 4. Never derive a person's name from `assignee_id` or make a separate user lookup when `assignee_name` is present in the task response.
 
+## Multiline Descriptions
+
+Use `--description-file <path>` for task or case descriptions that contain line breaks. The CLI reads the file as UTF-8 inside the process, so the content is not exposed to shell or batch-file argument parsing.
+
+1. For Windows PowerShell, use a path such as `--description-file .\description.md`.
+2. For macOS/Linux, use a path such as `--description-file ./description.md`.
+3. Use `--description-file -` to read the description from stdin, for example `Get-Content -Raw .\description.md | actask tasks create ... --description-file -` or `cat description.md | actask tasks create ... --description-file -`.
+4. Do not combine `--description` and `--description-file`; the CLI exits with invalid input before making a request.
+5. The file option is available for `tasks create`, `tasks update`, `tasks cases create`, and `tasks cases update`.
+
 ## Ambiguous Counts And Lists
 
 1. Treat terms such as "pendentes", "abertas", "em andamento" and "status" as ambiguous unless the user identifies a column or a configured field option.
