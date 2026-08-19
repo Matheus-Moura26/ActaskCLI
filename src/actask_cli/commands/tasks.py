@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections.abc import Mapping
+from pathlib import Path
 from typing import NoReturn, cast
 
 import typer
@@ -102,7 +104,12 @@ def create_task(
     project_id: str = typer.Option(..., "--project", help="Project ID for the new task."),
     title: str = typer.Option(..., help="Task title."),
     sprint: int = typer.Option(..., min=0, help="Sprint number."),
-    description: str = typer.Option("", help="Task description."),
+    description: str | None = typer.Option(None, help="Task description."),
+    description_file: Path | None = typer.Option(
+        None,
+        "--description-file",
+        help="Read the task description from a UTF-8 file; use - for stdin.",
+    ),
     column_id: str | None = typer.Option(None, help="Initial column ID."),
     assignee_id: str | None = typer.Option(None, help="Assignee user ID."),
     priority: str = typer.Option("normal", help="Task priority."),
@@ -118,11 +125,12 @@ def create_task(
 ) -> None:
     """Create a task after explicit confirmation, unless dry-running."""
 
+    normalized_description = _resolve_description(description, description_file, default="") or ""
     payload = _create_payload(
         project_id,
         title,
         sprint,
-        description,
+        normalized_description,
         column_id,
         assignee_id,
         priority,
@@ -154,6 +162,11 @@ def update_task(
     task_id: str,
     title: str | None = typer.Option(None, help="New task title."),
     description: str | None = typer.Option(None, help="New task description."),
+    description_file: Path | None = typer.Option(
+        None,
+        "--description-file",
+        help="Read the new task description from a UTF-8 file; use - for stdin.",
+    ),
     sprint: int | None = typer.Option(None, min=0, help="New sprint number."),
     column_id: str | None = typer.Option(None, help="New column ID."),
     position: int | None = typer.Option(
@@ -173,8 +186,9 @@ def update_task(
     normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
     if position is not None and column_id is None:
         _exit("--position requires --column-id.", ExitCode.INVALID_INPUT)
+    normalized_description = _resolve_description(description, description_file, default=None)
     payload = _update_payload(
-        title, description, sprint, column_id, assignee_id, priority, issue_type
+        title, normalized_description, sprint, column_id, assignee_id, priority, issue_type
     )
     move_column_id = payload.pop("column_id", None)
     if move_column_id is not None:
@@ -391,7 +405,12 @@ def list_case_fields(
 @cases_app.command("create")
 def create_case(
     task_id: str,
-    description: str = typer.Option("", help="Case description."),
+    description: str | None = typer.Option(None, help="Case description."),
+    description_file: Path | None = typer.Option(
+        None,
+        "--description-file",
+        help="Read the case description from a UTF-8 file; use - for stdin.",
+    ),
     tenant_id: str | None = typer.Option(None, "--tenant-id", help="Customer or tenant ID."),
     person_ids: list[str] = typer.Option(
         [],
@@ -413,8 +432,9 @@ def create_case(
 
     normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
     normalized_field_values = _parse_json_object(field_values, "--field-values")
+    normalized_description = _resolve_description(description, description_file, default="") or ""
     payload = _case_create_payload(
-        description,
+        normalized_description,
         tenant_id,
         person_ids,
         motivo,
@@ -453,6 +473,11 @@ def update_case(
     task_id: str,
     case_id: str,
     description: str | None = typer.Option(None, help="New case description."),
+    description_file: Path | None = typer.Option(
+        None,
+        "--description-file",
+        help="Read the new case description from a UTF-8 file; use - for stdin.",
+    ),
     tenant_id: str | None = typer.Option(None, "--tenant-id", help="New customer or tenant ID."),
     person_ids: list[str] = typer.Option(
         [],
@@ -492,8 +517,9 @@ def update_case(
     normalized_field_values = (
         None if field_values is None else _parse_json_object(field_values, "--field-values")
     )
+    normalized_description = _resolve_description(description, description_file, default=None)
     payload = _case_update_payload(
-        description,
+        normalized_description,
         tenant_id,
         person_ids,
         clear_person_ids,
@@ -759,6 +785,37 @@ def _parse_filter(value: str) -> dict[str, str]:
     if len(parts) != 3 or not all(part.strip() for part in parts):
         _exit("Filters must use field:operator:value.", ExitCode.INVALID_INPUT)
     return {"field_key": parts[0], "operator": parts[1], "value": parts[2]}
+
+
+def _resolve_description(
+    description: str | None,
+    description_file: Path | None,
+    *,
+    default: str | None,
+) -> str | None:
+    if description is not None and description_file is not None:
+        _exit(
+            "Use either --description or --description-file, not both.",
+            ExitCode.INVALID_INPUT,
+        )
+    if description_file is None:
+        return default if description is None else description
+    if str(description_file) == "-":
+        try:
+            return sys.stdin.read()
+        except OSError as error:
+            _exit(f"Could not read description from stdin: {error}", ExitCode.INVALID_INPUT)
+    try:
+        return description_file.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        _exit(f"Description file not found: {description_file}", ExitCode.INVALID_INPUT)
+    except UnicodeError:
+        _exit(f"Description file must be UTF-8: {description_file}", ExitCode.INVALID_INPUT)
+    except OSError as error:
+        _exit(
+            f"Could not read description file {description_file}: {error}",
+            ExitCode.INVALID_INPUT,
+        )
 
 
 def _create_payload(

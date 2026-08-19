@@ -74,6 +74,19 @@ actask tasks list --project <project-id> --json
 
 Read `data.assignee_name` for `tasks show` and `assignee_name` from each object in `data` for `tasks list`. In human-readable output, the columns are `key`, `title`, `project_id`, `task_id`, and `assignee_name`; the final column is empty when there is no assignee.
 
+### Multiline descriptions
+
+Use a UTF-8 file instead of an inline argument when a task or case description contains line breaks:
+
+```text
+actask tasks create --project <project-id> --title <title> --sprint <number> --description-file .\description.md --dry-run --json
+actask tasks update <task-id> --description-file .\description.md --dry-run --json
+actask tasks cases create <task-id> --description-file .\case-description.md --dry-run --json
+actask tasks cases update <task-id> <case-id> --description-file .\case-description.md --dry-run --json
+```
+
+On macOS/Linux, use `./description.md` paths. To read from standard input, pass `--description-file -`, for example `cat description.md | actask tasks create ... --description-file -`. The file contents are read as UTF-8 inside the CLI. Do not pass `--description` and `--description-file` together.
+
 ## Safe writes
 
 ```text
