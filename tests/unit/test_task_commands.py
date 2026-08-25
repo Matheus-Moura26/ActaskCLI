@@ -544,6 +544,88 @@ def test_tasks_create_dry_run_does_not_connect_and_shows_normalized_json(monkeyp
     assert client.payload is None
 
 
+def test_tasks_create_reads_multiline_description_file(tmp_path) -> None:
+    description_file = tmp_path / "description.md"
+    description_file.write_text("Context\n\nAcceptance criteria\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example",
+            "--sprint",
+            "1",
+            "--description-file",
+            str(description_file),
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["data"]["description"] == (
+        "Context\n\nAcceptance criteria\n"
+    )
+
+
+def test_tasks_create_reads_multiline_description_from_stdin() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example",
+            "--sprint",
+            "1",
+            "--description-file",
+            "-",
+            "--dry-run",
+            "--json",
+        ],
+        input="Context\n\nAcceptance criteria\n",
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["data"]["description"] == (
+        "Context\n\nAcceptance criteria\n"
+    )
+
+
+def test_tasks_create_rejects_description_options_used_together(tmp_path) -> None:
+    description_file = tmp_path / "description.md"
+    description_file.write_text("From file", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Example",
+            "--sprint",
+            "1",
+            "--description",
+            "Inline",
+            "--description-file",
+            str(description_file),
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert result.stderr == "Use either --description or --description-file, not both.\n"
+
+
 def test_tasks_update_dry_run_does_not_create_a_client_and_shows_normalized_json(
     monkeypatch,
 ) -> None:
@@ -572,6 +654,29 @@ def test_tasks_update_dry_run_does_not_create_a_client_and_shows_normalized_json
         },
         "error": None,
         "meta": {"dry_run": True},
+    }
+
+
+def test_tasks_update_reads_multiline_description_file(tmp_path) -> None:
+    description_file = tmp_path / "updated-description.md"
+    description_file.write_text("Updated context\nSecond line\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "update",
+            "task-1",
+            "--description-file",
+            str(description_file),
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["data"] == {
+        "description": "Updated context\nSecond line\n",
     }
 
 
@@ -863,6 +968,30 @@ def test_tasks_cases_create_dry_run_does_not_connect(monkeypatch) -> None:
         "error": None,
         "meta": {"dry_run": True},
     }
+
+
+def test_tasks_cases_create_reads_description_file(tmp_path) -> None:
+    description_file = tmp_path / "case-description.md"
+    description_file.write_text("Case context\n\nSteps\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "cases",
+            "create",
+            "task-1",
+            "--description-file",
+            str(description_file),
+            "--field-values",
+            '{"field-text":"hello"}',
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output)["data"]["description"] == "Case context\n\nSteps\n"
 
 
 def test_tasks_cases_create_rejects_invalid_option_before_writing(monkeypatch) -> None:

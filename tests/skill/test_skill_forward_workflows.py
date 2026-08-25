@@ -72,12 +72,14 @@ def test_skill_documents_cli_only_and_required_stops() -> None:
     assert "Exit code `3` / `401`: stop." in skill
     assert "Exit code `4` / `403`: stop." in skill
     assert "--dry-run" in skill
+    assert "--description-file" in skill
     assert "actask whoami --json" in reference
     assert "Treat terms such as \"pendentes\"" in skill
     assert "meta.total" in skill
     assert "actask projects columns <project-id> --json" in skill
     assert "--filter column:=:<column-id>" in reference
     assert "--parent-id <parent-task-id>" in reference
+    assert "--description-file -" in reference
     assert "Before creating a subtask" in skill
     assert "<redacted-session-token>" not in skill + reference
     assert "https://github.com/Matheus-Moura26/ActaskCLI" in skill
