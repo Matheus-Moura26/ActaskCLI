@@ -1050,6 +1050,33 @@ def test_tasks_cases_update_sends_native_and_custom_fields(monkeypatch) -> None:
     assert json.loads(result.output)["meta"] == {"request_id": "req-case-update"}
 
 
+def test_tasks_cases_update_reads_description_file(tmp_path, monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+    description_file = tmp_path / "updated-case-description.md"
+    description_file.write_text("Updated case context\n\nNext steps\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "cases",
+            "update",
+            "task-1",
+            "case-1",
+            "--description-file",
+            str(description_file),
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert client.payload == {
+        "description": "Updated case context\n\nNext steps\n",
+    }
+
+
 def test_tasks_cases_update_rejects_other_assignee_before_writing(monkeypatch) -> None:
     client = FakeClient(task_assignee_id="user-2")
     _install_fakes(monkeypatch, client)
