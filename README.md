@@ -14,6 +14,7 @@ O objetivo da v1 e oferecer login individual, consultas seguras e comandos essen
 - Listagem apenas de projetos acessiveis ao usuario.
 - Listagem e leitura de tasks respeitando associacao ao projeto e permissoes.
 - Criacao e atualizacao de tasks com confirmacao e suporte a `--dry-run`.
+- Desvinculacao oficial de subtasks padrao, preservando a task original.
 - Listagem, criacao e atualizacao de casos vinculados a tasks, incluindo campos personalizados tipados.
 - Listagem e criacao de comentarios vinculados a tasks, com mencoes explicitas por ID.
 - Agrupamento de tasks raiz, consulta da secao Agrupadas, log auditavel e undo por operacao.
@@ -151,6 +152,24 @@ actask tasks cases update <task-id> <case-id> \
 ```
 
 Antes da escrita, a CLI valida os tipos `text`, `number`, `select_single` e `select_multi`, além das opções configuradas, e o backend continua sendo a autoridade final de autorização.
+
+### Tornar uma subtask uma task normal
+
+Use o comando oficial para remover apenas o vinculo com a task pai. A task
+continua com o mesmo ID, projeto, conteudo e demais campos:
+
+```bash
+actask whoami --json
+actask tasks show <task-id> --json
+actask tasks promote <task-id> --dry-run --json
+actask tasks promote <task-id> --yes --json
+```
+
+O `--dry-run` nao faz requisicao. A CLI verifica o responsavel atual antes da
+escrita e o backend executa `POST /tasks/{task-id}/promote`. Subtasks
+personalizadas nao entram neste fluxo; elas sao recusadas para evitar perda ou
+descontextualizacao de valores personalizados. Repetir a promocao de uma task
+que ja e normal e seguro.
 
 ### Comentarios e mencoes em uma task
 

@@ -1,6 +1,6 @@
 ---
 name: actask-cli
-description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create or update a task safely, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
+description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create or update a task safely, promote a standard subtask, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
 ---
 
 # Actask CLI
@@ -77,6 +77,36 @@ For filters, use the system field keys with the normal task-list syntax:
 `actask tasks list --project <project-id> --filter isGroupingTask:equals:true --json`
 and `--filter isGroupedTask:equals:true`.
 
+## Promote a standard subtask
+
+Use the official promotion command to remove a standard task's `parent_id` while
+preserving the task ID, project, content and other fields:
+
+```text
+actask tasks promote <task-id> --dry-run --json
+actask tasks promote <task-id> --yes --json
+```
+
+Follow this sequence:
+
+1. Run `actask whoami --json` and `actask tasks show <task-id> --json`.
+2. Confirm that `data.parent_id` identifies the parent and that
+   `data.custom_subtask_definition_id` is `null` or absent. Custom subtasks are
+   intentionally not supported by this conversion command; stop with the
+   conflict instead of trying to clear their relation manually.
+3. Review the dry-run envelope. It must contain
+   `{"operation":"promote_subtask","task_id":"<task-id>","parent_id":null}`
+   under `data`; dry-run makes no network request.
+4. Obtain explicit authorization for the exact task, then execute with
+   `--yes --json`.
+
+The CLI reads the current identity and task before the write and stops with
+exit code `4` when another user is responsible. The backend remains the final
+authorization authority through `POST /tasks/{task-id}/promote`. Repeating the
+command for an already-normal standard task is safe and does not create another
+history or automation event. Do not replace this command with a direct API call
+or a generic update that may leave custom-subtask metadata behind.
+
 ## Ambiguous Counts And Lists
 
 1. Treat terms such as "pendentes", "abertas", "em andamento" and "status" as ambiguous unless the user identifies a column or a configured field option.
@@ -100,7 +130,7 @@ and `--filter isGroupedTask:equals:true`.
 
 ### Responsibility guard for existing tasks
 
-Before any write that changes an existing task (`tasks update`,
+Before any write that changes an existing task (`tasks update`, `tasks promote`,
 `tasks cases create`, `tasks cases update`, or `tasks comments create`), read the current identity and
 the task's current `assignee_id`. The CLI may proceed only when the task is
 unassigned or the authenticated user's ID matches `assignee_id`. If another

@@ -270,6 +270,30 @@ def test_client_reads_tasks_from_the_authorized_routes() -> None:
     }
 
 
+def test_client_promotes_task_through_the_official_endpoint() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            headers={"X-Request-ID": "req-promote"},
+            json={**TASK, "parent_id": None},
+        )
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        result = client.promote_task("task-1")
+
+    assert result.task.to_data() == {**TASK, "parent_id": None}
+    assert result.request_id == "req-promote"
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("POST", "/tasks/task-1/promote"),
+    ]
+    assert requests[0].content == b""
+
+
 def test_client_reads_and_writes_task_groupings() -> None:
     requests: list[httpx.Request] = []
 

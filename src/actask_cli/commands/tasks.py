@@ -240,6 +240,47 @@ def update_task(
     _write_task_result(result.task, result.request_id, json_output)
 
 
+@app.command("promote")
+def promote_subtask(
+    task_id: str,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show the promotion plan only."),
+    yes: bool = typer.Option(False, "--yes", help="Confirm the change without a prompt."),
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
+    """Detach a standard subtask and keep it as the same normal task."""
+
+    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    plan: dict[str, object] = {
+        "operation": "promote_subtask",
+        "task_id": normalized_task_id,
+        "parent_id": None,
+    }
+    if dry_run:
+        _write_dry_run(plan, json_output)
+        return
+
+    profile, session_token = _active_session()
+    credentials = CredentialStore()
+    try:
+        with _client(profile.server_url, session_token) as client:
+            task = _require_task_responsibility(client, normalized_task_id)
+            if task.payload.get("custom_subtask_definition_id") is not None:
+                _exit(
+                    "Custom subtasks cannot be promoted by this command.",
+                    ExitCode.CONFLICT,
+                )
+            if not _confirm("Promote this subtask to a normal task?", yes):
+                _write_cancelled(json_output)
+                return
+            result = client.promote_task(normalized_task_id)
+    except UnauthenticatedError as error:
+        _delete_after_unauthenticated(credentials, profile)
+        _exit_api_error(error)
+    except ApiError as error:
+        _exit_api_error(error)
+    _write_task_result(result.task, result.request_id, json_output)
+
+
 @comments_app.command("list")
 def list_comments(
     task_id: str,

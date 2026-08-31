@@ -122,7 +122,10 @@ class FakeClient:
     conflict: bool = False
     task_assignee_id: str | None = None
     task_assignee_name: str | None = None
+    task_parent_id: str | None = None
+    custom_subtask_definition_id: str | None = None
     payloads: list[dict[str, object]] = field(default_factory=list)
+    promote_calls: list[str] = field(default_factory=list)
     case_payloads: list[dict[str, object]] | None = None
     case_fields: tuple[dict[str, object], ...] = CASE_FIELDS
     created_case: Case | None = None
@@ -150,6 +153,10 @@ class FakeClient:
             "assignee_id": self.task_assignee_id,
             "assignee_name": self.task_assignee_name,
         }
+        if self.task_parent_id is not None:
+            payload["parent_id"] = self.task_parent_id
+        if self.custom_subtask_definition_id is not None:
+            payload["custom_subtask_definition_id"] = self.custom_subtask_definition_id
         if self.case_payloads is not None:
             payload["cases"] = self.case_payloads
         task = Task(
@@ -179,6 +186,22 @@ class FakeClient:
         if self.conflict:
             raise ConflictError("req-conflict")
         return TaskResult(TASK, "req-update")
+
+    def promote_task(self, task_id: str) -> TaskResult:
+        self.promote_calls.append(task_id)
+        promoted_payload = {
+            **TASK.payload,
+            "parent_id": None,
+            "custom_subtask_definition_id": None,
+        }
+        promoted = Task(
+            id=TASK.id,
+            key=TASK.key,
+            title=TASK.title,
+            project_id=TASK.project_id,
+            payload=promoted_payload,
+        )
+        return TaskResult(promoted, "req-promote")
 
     def list_comments(self, task_id: str) -> CommentListResult:
         return CommentListResult((COMMENT,), "req-comments")
@@ -646,6 +669,93 @@ def test_tasks_update_cancellation_does_not_mutate(monkeypatch) -> None:
     assert result.exit_code == 0
     assert result.output == "Update this task? [y/N]: n\nCancelled.\n"
     assert client.payload is None
+
+
+def test_tasks_promote_dry_run_does_not_create_a_client(monkeypatch) -> None:
+    def unexpected_network(*args: object, **kwargs: object) -> object:
+        raise AssertionError("dry-run must not construct a network client")
+
+    monkeypatch.setattr(tasks, "_client", unexpected_network)
+
+    result = runner.invoke(
+        app,
+        ["tasks", "promote", "task-1", "--dry-run", "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "data": {
+            "operation": "promote_subtask",
+            "task_id": "task-1",
+            "parent_id": None,
+        },
+        "error": None,
+        "meta": {"dry_run": True},
+    }
+
+
+def test_tasks_promote_reads_responsibility_and_uses_official_command(monkeypatch) -> None:
+    client = FakeClient(task_parent_id="parent-1")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        ["tasks", "promote", "task-1", "--yes", "--json"],
+    )
+
+    assert result.exit_code == 0
+    assert client.promote_calls == ["task-1"]
+    assert json.loads(result.output) == {
+        "data": {
+            **TASK.to_data(),
+            "parent_id": None,
+            "custom_subtask_definition_id": None,
+        },
+        "error": None,
+        "meta": {"request_id": "req-promote"},
+    }
+
+
+def test_tasks_promote_cancellation_does_not_mutate(monkeypatch) -> None:
+    client = FakeClient(task_parent_id="parent-1")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(
+        app,
+        ["tasks", "promote", "task-1"],
+        input="n\n",
+    )
+
+    assert result.exit_code == 0
+    assert result.output == (
+        "Promote this subtask to a normal task? [y/N]: n\nCancelled.\n"
+    )
+    assert client.promote_calls == []
+
+
+def test_tasks_promote_rejects_task_assigned_to_another_user_before_writing(monkeypatch) -> None:
+    client = FakeClient(task_parent_id="parent-1", task_assignee_id="user-2")
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "promote", "task-1", "--yes"])
+
+    assert result.exit_code == 4
+    assert result.stderr == "Você não é o responsável desta task\n"
+    assert client.promote_calls == []
+
+
+def test_tasks_promote_rejects_custom_subtask_before_writing(monkeypatch) -> None:
+    client = FakeClient(
+        task_parent_id="parent-1",
+        custom_subtask_definition_id="definition-1",
+    )
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "promote", "task-1", "--yes"])
+
+    assert result.exit_code == 6
+    assert result.stderr == "Custom subtasks cannot be promoted by this command.\n"
+    assert client.promote_calls == []
 
 
 def test_tasks_create_dry_run_does_not_connect_and_shows_normalized_json(monkeypatch) -> None:

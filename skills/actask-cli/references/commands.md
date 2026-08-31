@@ -51,6 +51,8 @@ Use `columns` to resolve a visual board-column name to its ID. Use `fields` to d
 actask tasks list --project <project-id> --json [--page <number>] [--page-size <number>] [--query <text>] [--filter <field:operator:value>]
 actask tasks show <task-id> --json
 actask tasks create --project <project-id> --title <title> --sprint <number> --parent-id <parent-task-id> --dry-run --json
+actask tasks promote <task-id> --dry-run --json
+actask tasks promote <task-id> --yes --json
 actask tasks cases list <task-id> --json
 actask tasks cases fields <task-id> --json
 actask tasks cases create <task-id> --description <text> --field-values <json-object> --dry-run --json
@@ -95,9 +97,39 @@ actask tasks create --project <project-id> --title <title> --sprint <number> --y
 actask tasks create --project <project-id> --title <title> --sprint <number> --parent-id <parent-task-id> --yes --json
 actask tasks update <task-id> --title <title> --dry-run --json
 actask tasks update <task-id> --title <title> --yes --json
+actask tasks promote <task-id> --dry-run --json
+actask tasks promote <task-id> --yes --json
 ```
 
 Optional create fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, `--issue-type`, and `--parent-id`. Supplying `--parent-id` creates a subtask under that parent. First inspect the parent with `tasks show`, copy its `project_id` into `--project`, and do not use a subtask as the parent: Actask supports one hierarchy level and the backend verifies this invariant. The remaining optional update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses the canonical `PATCH /tasks/{id}/move` contract. Before sending it, the CLI reads only the authorized task and project columns (including their ordering revisions), then sends a protected zero-based `position` or `append_to_end` placement. The backend resolves the final order while holding its ordering locks; frontend clients that already send anchors remain supported. When `--position` is omitted, the task is appended to the end. The backend remains the authority for authorization and optimistic-concurrency validation. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. `--position` requires `--column-id`. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request. If transport fails, the CLI reports the HTTP method, relative path, and safe exception type; it does not retry the move automatically.
+### Promote a standard subtask
+
+`tasks promote` is the official way to turn a standard subtask into a normal
+task. It clears only `parent_id` and keeps the task identity and content. Read
+the current identity and task first, then review the no-network dry-run and
+execute the matching confirmed command:
+
+```text
+actask whoami --json
+actask tasks show <task-id> --json
+actask tasks promote <task-id> --dry-run --json
+actask tasks promote <task-id> --yes --json
+```
+
+The dry-run `data` is:
+
+```json
+{"operation":"promote_subtask","task_id":"<task-id>","parent_id":null}
+```
+
+The command applies the same responsibility guard as other writes to an
+existing task: it stops with exit code `4` when another user is responsible.
+The backend is the final authority. A custom subtask, identified by a non-null
+`custom_subtask_definition_id`, is rejected with conflict exit code `6` because
+this flow must not discard or detach custom field values. Repeating promotion
+for an already-normal standard task is idempotent and does not add duplicate
+history or automation events.
+
 ## Task grouping
 
 Grouping is independent from standard subtasks. It sets `grouping_parent_id`

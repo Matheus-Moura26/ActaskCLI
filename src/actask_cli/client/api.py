@@ -176,6 +176,14 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def promote_task(self, task_id: str) -> TaskResult:
+        response = self._request("POST", f"tasks/{task_id}/promote")
+        request_id = _request_id(response)
+        return TaskResult(
+            task=Task.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def list_task_grouping_candidates(
         self,
         project_id: str,
