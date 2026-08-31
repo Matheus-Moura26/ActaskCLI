@@ -24,6 +24,8 @@ from actask_cli.client.models import (
     Comment,
     CommentListResult,
     CommentResult,
+    GroupedTask,
+    GroupedTaskPageResult,
     IdentityResult,
     LoginResult,
     LogoutResult,
@@ -32,6 +34,11 @@ from actask_cli.client.models import (
     ProjectListResult,
     ProjectResult,
     Task,
+    TaskGroupingCandidate,
+    TaskGroupingCandidatePageResult,
+    TaskGroupingOperation,
+    TaskGroupingOperationPageResult,
+    TaskGroupingOperationResult,
     TaskListResult,
     TaskResult,
     User,
@@ -169,6 +176,136 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def list_task_grouping_candidates(
+        self,
+        project_id: str,
+        *,
+        query: str | None = None,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> TaskGroupingCandidatePageResult:
+        params: dict[str, str | int | float | bool | None] = {
+            "page": page,
+            "page_size": page_size,
+        }
+        if query is not None:
+            params["q"] = query
+        response = self._request(
+            "GET",
+            f"projects/{project_id}/task-grouping-candidates",
+            params=params,
+        )
+        request_id = _request_id(response)
+        body = _payload(response)
+        items = _required_list(body, "items", request_id)
+        return TaskGroupingCandidatePageResult(
+            candidates=tuple(
+                TaskGroupingCandidate.from_payload(
+                    _required_mapping(item, request_id), request_id
+                )
+                for item in items
+            ),
+            page=_required_integer(body, "page", request_id),
+            page_size=_required_integer(body, "page_size", request_id),
+            has_next=_required_boolean(body, "has_next", request_id),
+            next_page=_optional_integer(body, "next_page", request_id),
+            request_id=request_id,
+        )
+
+    def create_task_grouping(
+        self,
+        project_id: str,
+        payload: Mapping[str, object],
+    ) -> TaskGroupingOperationResult:
+        response = self._request(
+            "POST",
+            f"projects/{project_id}/task-groupings",
+            json_body=payload,
+        )
+        request_id = _request_id(response)
+        return TaskGroupingOperationResult(
+            operation=TaskGroupingOperation.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
+    def list_task_groupings(
+        self,
+        project_id: str,
+        *,
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> TaskGroupingOperationPageResult:
+        params: dict[str, str | int | float | bool | None] = {
+            "page": page,
+            "page_size": page_size,
+        }
+        if status is not None:
+            params["status"] = status
+        response = self._request(
+            "GET",
+            f"projects/{project_id}/task-groupings",
+            params=params,
+        )
+        request_id = _request_id(response)
+        body = _payload(response)
+        items = _required_list(body, "items", request_id)
+        return TaskGroupingOperationPageResult(
+            operations=tuple(
+                TaskGroupingOperation.from_payload(
+                    _required_mapping(item, request_id), request_id
+                )
+                for item in items
+            ),
+            page=_required_integer(body, "page", request_id),
+            page_size=_required_integer(body, "page_size", request_id),
+            has_next=_required_boolean(body, "has_next", request_id),
+            next_page=_optional_integer(body, "next_page", request_id),
+            request_id=request_id,
+        )
+
+    def undo_task_grouping(
+        self,
+        project_id: str,
+        operation_id: str,
+    ) -> TaskGroupingOperationResult:
+        response = self._request(
+            "POST",
+            f"projects/{project_id}/task-groupings/{operation_id}/undo",
+        )
+        request_id = _request_id(response)
+        return TaskGroupingOperationResult(
+            operation=TaskGroupingOperation.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
+    def list_grouped_tasks(
+        self,
+        parent_task_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 100,
+    ) -> GroupedTaskPageResult:
+        response = self._request(
+            "GET",
+            f"tasks/{parent_task_id}/grouped-tasks",
+            params={"page": page, "page_size": page_size},
+        )
+        request_id = _request_id(response)
+        body = _payload(response)
+        items = _required_list(body, "items", request_id)
+        return GroupedTaskPageResult(
+            tasks=tuple(
+                GroupedTask.from_payload(_required_mapping(item, request_id), request_id)
+                for item in items
+            ),
+            page=_required_integer(body, "page", request_id),
+            page_size=_required_integer(body, "page_size", request_id),
+            has_next=_required_boolean(body, "has_next", request_id),
+            next_page=_optional_integer(body, "next_page", request_id),
+            request_id=request_id,
+        )
+
     def list_comments(self, task_id: str) -> CommentListResult:
         response = self._request("GET", f"tasks/{task_id}/comments")
         request_id = _request_id(response)
@@ -254,10 +391,15 @@ class ActaskApiClient:
         )
 
     def _request(
-        self, method: str, path: str, json_body: Mapping[str, object] | None = None
+        self,
+        method: str,
+        path: str,
+        json_body: Mapping[str, object] | None = None,
+        *,
+        params: Mapping[str, str | int | float | bool | None] | None = None,
     ) -> httpx.Response:
         try:
-            response = self._client.request(method, path, json=json_body)
+            response = self._client.request(method, path, json=json_body, params=params)
         except httpx.RequestError as error:
             raise NetworkError(method, path, type(error).__name__) from error
         if response.is_error:
@@ -366,6 +508,22 @@ def _required_mapping(value: object, request_id: str | None) -> dict[str, object
 def _required_integer(payload: Mapping[str, object], field: str, request_id: str | None) -> int:
     value = payload.get(field)
     if not isinstance(value, int) or isinstance(value, bool):
+        raise ServerError(request_id=request_id)
+    return value
+
+
+def _optional_integer(
+    payload: Mapping[str, object], field: str, request_id: str | None
+) -> int | None:
+    value = payload.get(field)
+    if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+        raise ServerError(request_id=request_id)
+    return value
+
+
+def _required_boolean(payload: Mapping[str, object], field: str, request_id: str | None) -> bool:
+    value = payload.get(field)
+    if not isinstance(value, bool):
         raise ServerError(request_id=request_id)
     return value
 

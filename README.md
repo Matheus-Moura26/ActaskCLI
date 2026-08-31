@@ -16,6 +16,7 @@ O objetivo da v1 e oferecer login individual, consultas seguras e comandos essen
 - Criacao e atualizacao de tasks com confirmacao e suporte a `--dry-run`.
 - Listagem, criacao e atualizacao de casos vinculados a tasks, incluindo campos personalizados tipados.
 - Listagem e criacao de comentarios vinculados a tasks, com mencoes explicitas por ID.
+- Agrupamento de tasks raiz, consulta da secao Agrupadas, log auditavel e undo por operacao.
 - Saida humana e estruturada por `--json`.
 - Skill `actask-cli` para agentes de IA operarem a CLI com guardrails.
 - Binarios para Windows, Linux e macOS, alem de instalacao para desenvolvimento via Git.
@@ -98,7 +99,7 @@ Nao execute um binario cujo SHA-256 nao corresponda ao checksum publicado.
 
 ```bash
 pipx ensurepath
-pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.0.3"
+pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.1.0"
 actask version
 ```
 
@@ -109,7 +110,7 @@ Abra um novo terminal depois de `pipx ensurepath` para que o `PATH` seja atualiz
 ```bash
 git clone https://github.com/Matheus-Moura26/ActaskCLI.git
 cd ActaskCLI
-git checkout v1.0.3
+git checkout v1.1.0
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
@@ -170,3 +171,46 @@ actask tasks comments create <task-id> \
 ```
 
 A criacao aplica o mesmo guardrail de responsabilidade das demais escritas em tasks existentes e nao possui comando de exclusao.
+
+### Agrupamento de tasks
+
+Agrupamento e uma relacao diferente de subtask: a task agrupada recebe
+`grouping_parent_id`, sai das colunas do board e continua acessivel na secao
+**Agrupadas** da task pai. A task pai continua visivel e recebe os metadados
+`isGroupingTask`/`is_grouping_task` e `grouped_task_count`.
+
+Crie a task pai primeiro, se necessario, como uma task raiz. Depois descubra
+candidatas, faca o dry-run e confirme o lote repetindo `--child`:
+
+```bash
+actask tasks create --project <project-id> --title "Task pai" --sprint <number> --yes --json
+actask tasks grouping candidates --project <project-id> --json
+actask tasks grouping group --project <project-id> \
+  --parent <parent-id-or-key> \
+  --child <child-id-or-key> \
+  --child <another-child-id-or-key> \
+  --idempotency-key <key> --dry-run --json
+actask tasks grouping group --project <project-id> \
+  --parent <parent-id-or-key> \
+  --child <child-id-or-key> \
+  --child <another-child-id-or-key> \
+  --idempotency-key <key> --yes --json
+```
+
+Consulte o log e os filhos agrupados, ou desfaça uma operacao especifica:
+
+```bash
+actask tasks grouping list --project <project-id> --status active --json
+actask tasks grouping children <parent-task-id> --json
+actask tasks grouping undo --project <project-id> \
+  --operation-id <operation-id> --yes --json
+```
+
+O backend exige acesso ao projeto e `moveTasks` (ou usuario master), valida o
+lote atomicamente e mantem o historico. Use os filtros comuns para localizar
+tasks agrupadoras ou agrupadas:
+
+```bash
+actask tasks list --project <project-id> --filter isGroupingTask:equals:true --json
+actask tasks list --project <project-id> --filter isGroupedTask:equals:true --json
+```

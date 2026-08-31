@@ -28,6 +28,38 @@ USER = {
 }
 PROJECT = {"id": "project-1", "name": "Example Project", "key": "EX"}
 TASK = {"id": "task-1", "key": "EX-1", "title": "Example task", "project_id": "project-1"}
+GROUPING_CANDIDATE = {
+    "id": "task-1",
+    "key": "EX-1",
+    "title": "Example task",
+    "project_id": "project-1",
+    "can_be_parent": True,
+    "can_be_child": True,
+    "is_grouping_task": False,
+    "is_grouped_task": False,
+    "grouped_task_count": 0,
+}
+GROUPING_OPERATION = {
+    "id": "operation-1",
+    "project_id": "project-1",
+    "parent_task_id": "task-1",
+    "parent_task_key_snapshot": "EX-1",
+    "parent_task_title_snapshot": "Example task",
+    "status": "active",
+    "item_count": 1,
+    "can_undo": True,
+    "items": [],
+}
+GROUPED_TASK = {
+    "id": "task-2",
+    "key": "EX-2",
+    "title": "Grouped task",
+    "project_id": "project-1",
+    "grouping_parent_id": "task-1",
+    "is_grouping_task": False,
+    "is_grouped_task": True,
+    "grouped_task_count": 0,
+}
 CASE = {
     "id": "case-1",
     "description": "Example case",
@@ -236,6 +268,112 @@ def test_client_reads_tasks_from_the_authorized_routes() -> None:
         "page": 1,
         "page_size": 25,
     }
+
+
+def test_client_reads_and_writes_task_groupings() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/projects/project-1/task-grouping-candidates":
+            return httpx.Response(
+                200,
+                headers={"X-Request-ID": "req-candidates"},
+                json={
+                    "items": [GROUPING_CANDIDATE],
+                    "page": 2,
+                    "page_size": 25,
+                    "has_next": True,
+                    "next_page": 3,
+                },
+            )
+        if request.url.path == "/projects/project-1/task-groupings":
+            if request.method == "POST":
+                return httpx.Response(
+                    200,
+                    headers={"X-Request-ID": "req-create-grouping"},
+                    json=GROUPING_OPERATION,
+                )
+            return httpx.Response(
+                200,
+                headers={"X-Request-ID": "req-grouping-log"},
+                json={
+                    "items": [GROUPING_OPERATION],
+                    "page": 1,
+                    "page_size": 50,
+                    "has_next": False,
+                    "next_page": None,
+                },
+            )
+        if request.url.path == "/projects/project-1/task-groupings/operation-1/undo":
+            return httpx.Response(
+                200,
+                headers={"X-Request-ID": "req-undo-grouping"},
+                json={**GROUPING_OPERATION, "status": "undone", "can_undo": False},
+            )
+        if request.url.path == "/tasks/task-1/grouped-tasks":
+            return httpx.Response(
+                200,
+                headers={"X-Request-ID": "req-grouped-tasks"},
+                json={
+                    "items": [GROUPED_TASK],
+                    "page": 1,
+                    "page_size": 100,
+                    "has_next": False,
+                    "next_page": None,
+                },
+            )
+        raise AssertionError(f"unexpected request path: {request.url.path}")
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        candidates = client.list_task_grouping_candidates(
+            "project-1",
+            query="Example",
+            page=2,
+            page_size=25,
+        )
+        created = client.create_task_grouping(
+            "project-1",
+            {
+                "parent_task_id": "task-1",
+                "task_ids": ["task-2"],
+                "idempotency_key": "batch-1",
+            },
+        )
+        log = client.list_task_groupings("project-1", status="active")
+        children = client.list_grouped_tasks("task-1")
+        undone = client.undo_task_grouping("project-1", "operation-1")
+
+    assert candidates.candidates[0].to_data() == GROUPING_CANDIDATE
+    assert candidates.request_id == "req-candidates"
+    assert created.operation.to_data() == GROUPING_OPERATION
+    assert created.request_id == "req-create-grouping"
+    assert log.operations[0].to_data() == GROUPING_OPERATION
+    assert children.tasks[0].to_data() == GROUPED_TASK
+    assert undone.operation.status == "undone"
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("GET", "/projects/project-1/task-grouping-candidates"),
+        ("POST", "/projects/project-1/task-groupings"),
+        ("GET", "/projects/project-1/task-groupings"),
+        ("GET", "/tasks/task-1/grouped-tasks"),
+        ("POST", "/projects/project-1/task-groupings/operation-1/undo"),
+    ]
+    assert dict(requests[0].url.params) == {
+        "q": "Example",
+        "page": "2",
+        "page_size": "25",
+    }
+    assert dict(requests[1].url.params) == {}
+    assert json.loads(requests[1].content) == {
+        "parent_task_id": "task-1",
+        "task_ids": ["task-2"],
+        "idempotency_key": "batch-1",
+    }
+    assert dict(requests[2].url.params) == {"status": "active", "page": "1", "page_size": "50"}
+    assert dict(requests[3].url.params) == {"page": "1", "page_size": "100"}
+    assert dict(requests[4].url.params) == {}
 
 
 def test_client_writes_tasks_to_the_authorized_routes() -> None:

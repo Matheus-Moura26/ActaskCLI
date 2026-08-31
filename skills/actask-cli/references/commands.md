@@ -98,6 +98,71 @@ actask tasks update <task-id> --title <title> --yes --json
 ```
 
 Optional create fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, `--issue-type`, and `--parent-id`. Supplying `--parent-id` creates a subtask under that parent. First inspect the parent with `tasks show`, copy its `project_id` into `--project`, and do not use a subtask as the parent: Actask supports one hierarchy level and the backend verifies this invariant. The remaining optional update fields are `--description`, `--column-id`, `--assignee-id`, `--priority`, and `--issue-type`. For `tasks update`, `--column-id` uses the canonical `PATCH /tasks/{id}/move` contract. Before sending it, the CLI reads only the authorized task and project columns (including their ordering revisions), then sends a protected zero-based `position` or `append_to_end` placement. The backend resolves the final order while holding its ordering locks; frontend clients that already send anchors remain supported. When `--position` is omitted, the task is appended to the end. The backend remains the authority for authorization and optimistic-concurrency validation. Do not combine `--column-id` with other update fields; run the move as a separate confirmed command to avoid a partially applied multi-request change. `--position` requires `--column-id`. Read current state, dry-run, and obtain explicit confirmation before executing a write. `--dry-run` does not send a request. If transport fails, the CLI reports the HTTP method, relative path, and safe exception type; it does not retry the move automatically.
+## Task grouping
+
+Grouping is independent from standard subtasks. It sets `grouping_parent_id`
+on an existing root task, never `parent_id`; grouped tasks are hidden from
+project-board columns and remain available in the parent's **Agrupadas**
+section. The parent stays visible. `isGroupingTask`/`is_grouping_task` identifies
+a parent with active grouped children, and `isGroupedTask`/`is_grouped_task`
+identifies a task that belongs to a grouping parent.
+
+Create the parent first with the normal task command when necessary. Do not use
+`--parent-id` for a grouping parent:
+
+```text
+actask tasks create --project <project-id> --title <title> --sprint <number> --dry-run --json
+actask tasks create --project <project-id> --title <title> --sprint <number> --yes --json
+```
+
+Discover eligible root tasks and their flags with:
+
+```text
+actask tasks grouping candidates --project <project-id> --json
+actask tasks grouping candidates --project <project-id> --query <text> --page 1 --page-size 100 --json
+```
+
+Group an existing parent with one or more existing child IDs or exact public
+keys. Repeat `--child`; the CLI reads the parent and every child before
+confirmation, resolves public keys within the authorized project, and sends
+only IDs to the backend while
+the backend performs the final project, root-task, conflict and permission
+checks atomically:
+
+```text
+actask tasks grouping group --project <project-id> --parent <parent-task-id> \
+  --child <child-task-id> --child <another-child-task-id> \
+  --idempotency-key <key> --dry-run --json
+actask tasks grouping group --project <project-id> --parent <parent-task-id> \
+  --child <child-task-id> --child <another-child-task-id> \
+  --idempotency-key <key> --yes --json
+```
+
+`create` is an alias for `group`; `--request-id` is an alias for
+`--idempotency-key`. The grouping mutation requires project access and
+`moveTasks`, except for master users. A retry with the same idempotency key
+returns the same operation instead of creating a second log entry.
+
+Inspect the operation log, grouped children, and undo a specific operation:
+
+```text
+actask tasks grouping list --project <project-id> --status active --page 1 --page-size 50 --json
+actask tasks grouping log --project <project-id> --json
+actask tasks grouping children <parent-task-id> --json
+actask tasks grouping undo --project <project-id> --operation-id <operation-id> --dry-run --json
+actask tasks grouping undo --project <project-id> --operation-id <operation-id> --yes --json
+```
+
+`undo` is atomic and audited; it removes the relationships from that operation
+without deleting or changing task content. The operation ID comes from
+`group` or the log, and a repeated undo is idempotent. Use the normal task
+filters to find parents or grouped children:
+
+```text
+actask tasks list --project <project-id> --filter isGroupingTask:equals:true --json
+actask tasks list --project <project-id> --filter isGroupedTask:equals:true --json
+```
+
 Cases linked to a task use the following commands:
 
 ```text

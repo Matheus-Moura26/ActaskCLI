@@ -1,3 +1,18 @@
+# Actask CLI v1.1.0
+
+## Alteracoes
+
+- Adicionados `actask tasks grouping candidates`, `group`/`create`, `list`/`log`, `children` e `undo`.
+- O agrupamento usa `grouping_parent_id`, mantem os filhos fora do board, preserva a secao **Agrupadas** e registra operacoes auditaveis com undo atomico.
+- O cliente HTTP tipado cobre as cinco rotas de agrupamento do backend, com paginacao, `--dry-run`, confirmacao, idempotencia e JSON estavel.
+- A Skill `actask-cli` agora explica a diferenca entre agrupamento e subtask, os filtros `isGroupingTask`/`isGroupedTask` e o fluxo seguro de criacao/desfazimento.
+
+## Atualizacao
+
+Instale ou atualize pela tag `v1.1.0`.
+
+---
+
 # Actask CLI v1.0.4
 
 ## Alteracoes

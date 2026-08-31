@@ -1,6 +1,6 @@
 ---
 name: actask-cli
-description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create or update a task safely, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
+description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create or update a task safely, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
 ---
 
 # Actask CLI
@@ -47,6 +47,36 @@ Use `--description-file <path>` for task or case descriptions that contain line 
 4. Do not combine `--description` and `--description-file`; the CLI exits with invalid input before making a request.
 5. The file option is available for `tasks create`, `tasks update`, `tasks cases create`, and `tasks cases update`.
 
+## Task Grouping
+
+Task grouping is a separate relationship from standard subtasks. A grouped task
+keeps its existing content and has `grouping_parent_id` set to the grouping
+parent; it does not use `parent_id`. Grouped tasks are hidden from project-board
+columns and are exposed through the parent's **Agrupadas** section. The parent
+remains a normal root task on the board. `is_grouping_task`/`isGroupingTask`
+means that a task has at least one active grouped child, while
+`is_grouped_task`/`isGroupedTask` means that the task belongs to a grouping
+parent.
+
+Use only the public CLI commands below; do not call the API or the backend's
+database script directly:
+
+1. Run `actask whoami --json`, discover the project with `actask projects list --json`, and inspect available tasks with `actask tasks grouping candidates --project <project-id> --json`.
+2. If a new parent is needed, create it first with `actask tasks create --project <project-id> ...` without `--parent-id`. A parent must be an existing root task before grouping.
+3. Preview the relationship without a request: `actask tasks grouping group --project <project-id> --parent <parent-id-or-key> --child <child-id-or-key> --child <another-child-id-or-key> --dry-run --json`.
+4. After confirming the exact parent and child IDs or public keys, execute the same command with `--yes --json`. Repeat `--child` for each grouped task. Use `--idempotency-key <key>` when a retry must refer to the same batch; on a real run the CLI resolves public keys to IDs inside the authorized project.
+5. Review the audit log with `actask tasks grouping list --project <project-id> --json` (or the `log` alias), and inspect hidden children with `actask tasks grouping children <parent-task-id> --json`.
+6. Undo only a specific operation from that log. Preview with `actask tasks grouping undo --project <project-id> --operation-id <operation-id> --dry-run --json`, then execute with `--yes --json` after explicit confirmation. Undo is an atomic, audited operation and is not task deletion.
+
+Grouping mutations are project-level operations. The backend requires project
+access plus `moveTasks` (or master access); the CLI must never infer or bypass
+that authorization. The command reads the selected tasks before confirmation,
+but the backend remains the final authority and may reject a stale, grouped,
+archived, subtask, cross-project, duplicate, or otherwise invalid selection.
+For filters, use the system field keys with the normal task-list syntax:
+`actask tasks list --project <project-id> --filter isGroupingTask:equals:true --json`
+and `--filter isGroupedTask:equals:true`.
+
 ## Ambiguous Counts And Lists
 
 1. Treat terms such as "pendentes", "abertas", "em andamento" and "status" as ambiguous unless the user identifies a column or a configured field option.
@@ -70,7 +100,7 @@ Use `--description-file <path>` for task or case descriptions that contain line 
 
 ### Responsibility guard for existing tasks
 
-Before any write that changes an existing task (`tasks update`, `tasks attach`,
+Before any write that changes an existing task (`tasks update`,
 `tasks cases create`, `tasks cases update`, or `tasks comments create`), read the current identity and
 the task's current `assignee_id`. The CLI may proceed only when the task is
 unassigned or the authenticated user's ID matches `assignee_id`. If another
@@ -79,6 +109,11 @@ message `Você não é o responsável desta task`. This is a CLI-side business
 rule; the backend remains the final authorization authority. `tasks create` is
 not subject to this guard because it creates a new task with no existing
 responsible user.
+
+`tasks grouping group` and `tasks grouping undo` are project-level mutations,
+not ordinary task-field updates. They use the grouping contract and the
+backend's `moveTasks`/master authorization; do not replace that check with an
+assignee lookup or attempt to bypass a `403`.
 
 For cases linked to a task, use `actask tasks cases list <task-id> --json` to obtain case IDs and `actask tasks cases fields <task-id> --json` to obtain the project's field definition IDs, types and options. Use `actask tasks cases create` or `actask tasks cases update` with `--field-values <json-object>` for custom case fields. These writes read the task first, apply the same responsibility guard as other task writes, validate configured field types/options locally, and then rely on the backend for authorization and persistence. Use `--dry-run` before a write and `--yes --json` only after the normalized payload is confirmed.
 

@@ -15,6 +15,7 @@ from actask_cli.client.api import ActaskApiClient
 from actask_cli.client.errors import ApiError, ExitCode, ServerError, UnauthenticatedError
 from actask_cli.client.models import Case, Comment, Task
 from actask_cli.commands.auth import _active_session, _client, _delete_after_unauthenticated
+from actask_cli.commands.grouping import app as grouping_app
 from actask_cli.commands.projects import _write_json
 from actask_cli.config.credentials import CredentialStore
 
@@ -23,6 +24,7 @@ cases_app = typer.Typer(help="List and modify cases linked to a task.")
 comments_app = typer.Typer(help="List and create comments linked to a task.")
 app.add_typer(cases_app, name="cases")
 app.add_typer(comments_app, name="comments")
+app.add_typer(grouping_app, name="grouping")
 
 
 @app.command("list")

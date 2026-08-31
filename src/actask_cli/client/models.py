@@ -153,6 +153,124 @@ class TaskResult:
 
 
 @dataclass(frozen=True)
+class TaskGroupingCandidate:
+    """A task returned by the grouping-candidate endpoint."""
+
+    id: str
+    key: str
+    title: str
+    project_id: str
+    payload: Mapping[str, object]
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+        request_id: str | None,
+    ) -> TaskGroupingCandidate:
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            key=_required_string(payload, "key", request_id),
+            title=_required_string(payload, "title", request_id),
+            project_id=_required_string(payload, "project_id", request_id),
+            payload=dict(payload),
+        )
+
+    def to_data(self) -> dict[str, object]:
+        return dict(self.payload)
+
+
+@dataclass(frozen=True)
+class TaskGroupingCandidatePageResult:
+    candidates: tuple[TaskGroupingCandidate, ...]
+    page: int
+    page_size: int
+    has_next: bool
+    next_page: int | None
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class TaskGroupingOperation:
+    """A grouping operation or audit-log entry returned by the backend."""
+
+    id: str
+    status: str
+    project_id: str
+    payload: Mapping[str, object]
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+        request_id: str | None,
+    ) -> TaskGroupingOperation:
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            status=_required_string(payload, "status", request_id),
+            project_id=_required_string(payload, "project_id", request_id),
+            payload=dict(payload),
+        )
+
+    def to_data(self) -> dict[str, object]:
+        return dict(self.payload)
+
+
+@dataclass(frozen=True)
+class TaskGroupingOperationResult:
+    operation: TaskGroupingOperation
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class TaskGroupingOperationPageResult:
+    operations: tuple[TaskGroupingOperation, ...]
+    page: int
+    page_size: int
+    has_next: bool
+    next_page: int | None
+    request_id: str | None
+
+
+@dataclass(frozen=True)
+class GroupedTask:
+    """A task returned in a grouping parent's hidden Agrupadas section."""
+
+    id: str
+    key: str
+    title: str
+    project_id: str
+    payload: Mapping[str, object]
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+        request_id: str | None,
+    ) -> GroupedTask:
+        return cls(
+            id=_required_string(payload, "id", request_id),
+            key=_required_string(payload, "key", request_id),
+            title=_required_string(payload, "title", request_id),
+            project_id=_required_string(payload, "project_id", request_id),
+            payload=dict(payload),
+        )
+
+    def to_data(self) -> dict[str, object]:
+        return dict(self.payload)
+
+
+@dataclass(frozen=True)
+class GroupedTaskPageResult:
+    tasks: tuple[GroupedTask, ...]
+    page: int
+    page_size: int
+    has_next: bool
+    next_page: int | None
+    request_id: str | None
+
+
+@dataclass(frozen=True)
 class Case:
     """A case linked to an Actask task."""
 

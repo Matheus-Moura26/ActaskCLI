@@ -72,6 +72,12 @@
 
 **Reason:** O backend publicado ja persiste comentarios, replies e notificacoes de mencao. A CLI apenas normaliza o payload, oferece `--dry-run --json`, aplica o guardrail local de responsabilidade antes da escrita e deixa a autorizacao e a resolucao final de usuarios no backend.
 
+### AD-014 - Agrupamento de tasks usa uma superficie publica separada de subtasks
+
+**Decision:** Expor `actask tasks grouping candidates`, `group`/`create`, `list`/`log`, `children` e `undo`. O cliente usa as cinco rotas autorizadas de agrupamento do backend; `grouping_parent_id` permanece distinto de `parent_id`, e o pai deve ser criado primeiro como task raiz quando necessario.
+
+**Reason:** O backend ja implementa o relacionamento, o log e o undo atomico, mas a CLI publica v1.0.4 ainda nao tinha um adaptador HTTP para essas rotas. Manter o agrupamento em um namespace proprio evita confundir a relacao com subtasks e permite documentar claramente que os filhos ficam fora do board e aparecem em **Agrupadas**.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -102,13 +108,20 @@
 - O cliente tipado cobre `GET/POST /tasks/{task_id}/comments`; `@label` continua suportado pelo contrato server-side.
 - `pytest -q`: `86 passed`; Ruff, mypy, build e `git diff --check` devem permanecer sem erros antes do push para stage.
 
+### 2026-08-31 - Agrupamento de tasks pela CLI publica
+
+- A CLI publica `1.1.0` cobre candidatos, agrupamento em lote, log, filhos agrupados e undo pelas rotas autenticadas do backend.
+- Escritas de agrupamento exigem `--dry-run` ou confirmacao/`--yes`; a CLI le pai e filhos antes do POST e o backend continua sendo a autoridade para `moveTasks`, projeto, raiz, conflitos e atomicidade.
+- `skills/actask-cli/SKILL.md` e `references/commands.md` documentam `grouping_parent_id`, a diferenca para `parent_id`, filtros e o fluxo para criar primeiro uma task pai.
+- Gate completo: `100 passed`; Ruff, mypy, build e `git diff --check` sem erros.
+
 ## Handoff
 
 - **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: MMS-161 — CLI comments and mentions
-- **Completed**: `tasks update` uses the protected stage movement contract; the CLI lists and edits cases with typed custom-field validation and lists/creates task comments with replies and explicit mentions. Existing-task writes read responsibility before sending the backend request.
+- **Phase / Task**: Task grouping CLI public surface
+- **Completed**: `tasks update` uses the protected stage movement contract; the CLI lists and edits cases with typed custom-field validation, lists/creates task comments with replies and explicit mentions, and exposes the backend task-grouping contract with safe batch/undo commands. Existing task-field writes keep the responsibility guard; grouping writes use the project-level `moveTasks`/master authorization.
 - **In-progress** (file:line): none
 - **Next step**: Independent verification, then release the CLI when authorized.
 - **Blockers**: none.
 - **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/mms161-cli-comments-stage`
+- **Branch**: `codex/task-grouping-cli`

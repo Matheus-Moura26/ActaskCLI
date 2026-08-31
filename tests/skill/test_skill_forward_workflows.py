@@ -83,6 +83,11 @@ def test_skill_documents_cli_only_and_required_stops() -> None:
     assert "--description-file" in skill
     assert "--description-file -" in reference
     assert "Before creating a subtask" in skill
+    assert "tasks grouping group" in skill
+    assert "grouping_parent_id" in skill
+    assert "moveTasks" in skill
+    assert "tasks grouping undo" in reference
+    assert "isGroupingTask:equals:true" in reference
     assert "<redacted-session-token>" not in skill + reference
     assert "https://github.com/Matheus-Moura26/ActaskCLI" in skill
     assert "SHA256SUMS" in skill
