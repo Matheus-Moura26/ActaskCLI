@@ -207,6 +207,39 @@ def test_client_reads_projects_from_the_authorized_routes() -> None:
     assert all(request.headers["X-Session-Token"] == SESSION_TOKEN for request in requests)
 
 
+def test_client_creates_project_through_the_authorized_route() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, headers={"X-Request-ID": "req-create-project"}, json=PROJECT)
+
+    with ActaskApiClient(
+        BASE_URL, session_token=SESSION_TOKEN, transport=httpx.MockTransport(handler)
+    ) as client:
+        created = client.create_project(
+            {
+                "name": "New Project",
+                "key": "NEW",
+                "current_sprint": 1,
+                "timezone": "America/Sao_Paulo",
+            }
+        )
+
+    assert created.project.to_data() == PROJECT
+    assert created.request_id == "req-create-project"
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("POST", "/projects"),
+    ]
+    assert json.loads(requests[0].content) == {
+        "name": "New Project",
+        "key": "NEW",
+        "current_sprint": 1,
+        "timezone": "America/Sao_Paulo",
+    }
+    assert requests[0].headers["X-Session-Token"] == SESSION_TOKEN
+
+
 def test_client_reads_project_columns_and_field_registry() -> None:
     requests: list[httpx.Request] = []
 

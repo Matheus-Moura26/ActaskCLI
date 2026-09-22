@@ -12,6 +12,7 @@ O objetivo da v1 e oferecer login individual, consultas seguras e comandos essen
 - Credencial armazenada no cofre seguro do sistema operacional.
 - Identificacao da sessao com `actask whoami`.
 - Listagem apenas de projetos acessiveis ao usuario.
+- Criacao de projetos com confirmacao, `--dry-run` e autorizacao `createProjects` do backend.
 - Listagem e leitura de tasks respeitando associacao ao projeto e permissoes.
 - Criacao e atualizacao de tasks com confirmacao e suporte a `--dry-run`.
 - Desvinculacao oficial de subtasks padrao, preservando a task original.
@@ -27,6 +28,7 @@ O objetivo da v1 e oferecer login individual, consultas seguras e comandos essen
 - [Especificacao da v1](.specs/features/cli-v1/spec.md)
 - [Arquitetura proposta](.specs/features/cli-v1/design.md)
 - [Plano de tarefas](.specs/features/cli-v1/tasks.md)
+- [Especificacao de criacao de projetos](.specs/features/project-create-cli/spec.md)
 - [Protocolo do orquestrador de IA](docs/AI_ORCHESTRATION.md)
 - [Decisoes e estado do projeto](.specs/STATE.md)
 
@@ -128,6 +130,29 @@ actask whoami
 ```
 
 `login` usa `https://actaskapi.bluefronte.com` como padrao; pressione Enter no campo Server URL para usa-la. Informe outra URL somente para staging ou ambiente proprio. A senha nao aparece no terminal. A autorizacao de cada comando continua sendo decidida pelo backend; um `403` significa que a conta autenticada nao possui permissao para aquela operacao.
+
+### Criar um projeto
+
+Use `--dry-run` para revisar o payload antes de criar. A chave e enviada em
+maiusculas, e os valores padrao seguem o contrato do backend:
+
+```bash
+actask projects create \
+  --name "Novo projeto" \
+  --key "NOVO" \
+  --current-sprint 1 \
+  --timezone America/Sao_Paulo \
+  --dry-run --json
+
+actask projects create \
+  --name "Novo projeto" \
+  --key "NOVO" \
+  --yes --json
+```
+
+A criacao usa `POST /projects` e exige que o backend autorize a permissao
+global `createProjects`. Sem `--yes`, a CLI pede confirmacao; `--dry-run` nao
+faz requisicao.
 
 ### Casos de uma task
 

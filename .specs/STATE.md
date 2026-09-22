@@ -78,6 +78,12 @@
 
 **Reason:** O backend ja implementa o relacionamento, o log e o undo atomico, mas a CLI publica v1.0.4 ainda nao tinha um adaptador HTTP para essas rotas. Manter o agrupamento em um namespace proprio evita confundir a relacao com subtasks e permite documentar claramente que os filhos ficam fora do board e aparecem em **Agrupadas**.
 
+### AD-015 - Criacao de projetos usa o contrato protegido existente
+
+**Decision:** Expor `actask projects create` usando `POST /projects`, com `name`, `key`, `current_sprint` e `timezone`. A CLI normaliza a chave para maiusculas, oferece `--dry-run`, exige confirmacao ou `--yes` e deixa a permissao global `createProjects` ser decidida pelo backend.
+
+**Reason:** O backend ja cria o projeto, associa o criador como administrador e provisiona colunas e campos padrao. Um adaptador tipado na CLI entrega a capacidade sem duplicar essa logica ou transformar a verificacao local em autorizacao.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -117,11 +123,11 @@
 
 ## Handoff
 
-- **Feature**: `.specs/features/cli-v1`
-- **Phase / Task**: Task grouping CLI public surface
-- **Completed**: `tasks update` uses the protected stage movement contract; the CLI lists and edits cases with typed custom-field validation, lists/creates task comments with replies and explicit mentions, and exposes the backend task-grouping contract with safe batch/undo commands. Existing task-field writes keep the responsibility guard; grouping writes use the project-level `moveTasks`/master authorization.
+- **Feature**: project creation in the CLI
+- **Phase / Task**: add `actask projects create`
+- **Completed**: Added the typed `POST /projects` client method, guarded command with `--dry-run`/confirmation/`--yes`, uppercase key normalization, human/JSON output, unit coverage, synchronized README/API contract/authorization matrix/Skill guidance, and independent validation evidence.
 - **In-progress** (file:line): none
-- **Next step**: Independent verification, then release the CLI when authorized.
+- **Next step**: Independent review of the final diff, then release/install only when authorized.
 - **Blockers**: none.
-- **Uncommitted files**: none after recording the release evidence.
-- **Branch**: `codex/task-grouping-cli`
+- **Uncommitted files**: none.
+- **Branch**: `codex/projects-create-cli`

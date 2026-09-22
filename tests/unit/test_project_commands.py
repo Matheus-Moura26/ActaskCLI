@@ -39,6 +39,7 @@ class FakeCredentialStore:
 class FakeClient:
     projects: tuple[Project, ...] = (PROJECT_ONE, PROJECT_TWO)
     forbidden: bool = False
+    created_payload: dict[str, object] | None = None
 
     def __enter__(self) -> FakeClient:
         return self
@@ -48,6 +49,12 @@ class FakeClient:
 
     def list_projects(self) -> ProjectListResult:
         return ProjectListResult(self.projects, "req-projects")
+
+    def create_project(self, payload: dict[str, object]) -> ProjectResult:
+        if self.forbidden:
+            raise ForbiddenError("req-forbidden")
+        self.created_payload = payload
+        return ProjectResult(PROJECT_ONE, "req-create")
 
     def show_project(self, project_id: str) -> ProjectResult:
         if self.forbidden:
@@ -115,6 +122,136 @@ def test_projects_list_pages_the_server_authorized_projects(monkeypatch) -> None
     assert result.exit_code == 0
     assert payload["data"] == [PROJECT_TWO.to_data()]
     assert payload["meta"] == {"page": 2, "page_size": 1, "request_id": "req-projects", "total": 2}
+
+
+def test_projects_create_sends_normalized_payload_and_has_equivalent_output(monkeypatch) -> None:
+    credentials = FakeCredentialStore()
+    client = FakeClient()
+    _install_fakes(monkeypatch, client, credentials)
+    arguments = [
+        "projects",
+        "create",
+        "--name",
+        "New Project",
+        "--key",
+        "new",
+        "--current-sprint",
+        "3",
+        "--timezone",
+        "UTC",
+        "--yes",
+    ]
+
+    human = runner.invoke(app, arguments)
+    json_result = runner.invoke(app, [*arguments, "--json"])
+    payload = json.loads(json_result.output)
+
+    assert human.exit_code == 0
+    assert human.output == "EX\tExample Project\tproject-1\n"
+    assert json_result.exit_code == 0
+    assert payload == {
+        "data": PROJECT_ONE.to_data(),
+        "error": None,
+        "meta": {"request_id": "req-create"},
+    }
+    assert client.created_payload == {
+        "name": "New Project",
+        "key": "NEW",
+        "current_sprint": 3,
+        "timezone": "UTC",
+    }
+
+
+def test_projects_create_dry_run_never_constructs_a_network_client(monkeypatch) -> None:
+    def fail_if_client_is_created(*args: object, **kwargs: object) -> None:
+        raise AssertionError("dry-run must not construct a network client")
+
+    monkeypatch.setattr(projects, "_client", fail_if_client_is_created)
+
+    result = runner.invoke(
+        app,
+        [
+            "projects",
+            "create",
+            "--name",
+            "New Project",
+            "--key",
+            "new",
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(result.output) == {
+        "data": {
+            "current_sprint": 1,
+            "key": "NEW",
+            "name": "New Project",
+            "timezone": "America/Sao_Paulo",
+        },
+        "error": None,
+        "meta": {"dry_run": True},
+    }
+
+
+def test_projects_create_preserves_forbidden_response(monkeypatch) -> None:
+    credentials = FakeCredentialStore()
+    _install_fakes(monkeypatch, FakeClient(forbidden=True), credentials)
+
+    result = runner.invoke(
+        app,
+        [
+            "projects",
+            "create",
+            "--name",
+            "New Project",
+            "--key",
+            "NEW",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 4
+    assert result.stderr == "You do not have permission to perform this action.\n"
+
+
+def test_projects_create_requires_confirmation_before_mutation(monkeypatch) -> None:
+    credentials = FakeCredentialStore()
+    client = FakeClient()
+    _install_fakes(monkeypatch, client, credentials)
+
+    result = runner.invoke(
+        app,
+        [
+            "projects",
+            "create",
+            "--name",
+            "New Project",
+            "--key",
+            "NEW",
+        ],
+        input="n\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Cancelled." in result.output
+    assert client.created_payload is None
+
+
+def test_projects_create_requires_a_non_empty_name(monkeypatch) -> None:
+    credentials = FakeCredentialStore()
+    client = FakeClient()
+    _install_fakes(monkeypatch, client, credentials)
+
+    result = runner.invoke(
+        app,
+        ["projects", "create", "--name", "   ", "--key", "NEW", "--yes"],
+    )
+
+    assert result.exit_code == 2
+    assert result.stderr == "A project name is required.\n"
+    assert client.created_payload is None
 
 
 def test_projects_show_has_equivalent_human_and_json_output(monkeypatch) -> None:

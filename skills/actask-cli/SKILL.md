@@ -1,6 +1,6 @@
 ---
 name: actask-cli
-description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create or update a task safely, promote a standard subtask, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
+description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create a project or create/update a task safely, promote a standard subtask, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
 ---
 
 # Actask CLI
@@ -27,6 +27,22 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 3. Run `actask tasks list --project <project-id> --json` to discover tasks. Use only documented filters.
 4. Run `actask tasks show <task-id> --json` to inspect one task.
 5. Summarize only returned data. Do not infer access to projects or tasks that are not returned.
+
+## Project creation
+
+Create a project only when the user explicitly authorizes that exact project
+creation. The backend remains the authority for the global `createProjects`
+permission:
+
+```text
+actask projects create --name <name> --key <key> --dry-run --json
+actask projects create --name <name> --key <key> --yes --json
+```
+
+Optional fields are `--current-sprint <number>` (default `1`) and
+`--timezone <iana-zone>` (default `America/Sao_Paulo`). The CLI normalizes the
+project key to uppercase. Review the dry-run payload before executing; stop on
+`401` or `403` and do not try another identity or bypass the backend.
 
 ## Task Assignee Names
 
@@ -123,8 +139,8 @@ or a generic update that may leave custom-subtask metadata behind.
 
 1. Read the relevant project and task state first.
 2. Before creating a subtask, read its intended parent with `actask tasks show <parent-task-id> --json`; use the parent's `project_id` and do not create a child of another subtask. The backend enforces the one-level hierarchy.
-3. State the proposed change, including task ID and changed fields, and obtain explicit user authorization unless the request already clearly authorizes that exact change.
-4. Run `actask tasks create ... --dry-run --json` or `actask tasks update ... --dry-run --json`.
+3. State the proposed change, including the project name/key or task ID and changed fields, and obtain explicit user authorization unless the request already clearly authorizes that exact change.
+4. Run `actask projects create ... --dry-run --json`, `actask tasks create ... --dry-run --json` or `actask tasks update ... --dry-run --json`.
 5. Compare the normalized dry-run payload with the authorized change. Ask again if fields, target, or effect differ.
 6. Execute the matching command with `--yes --json` only after confirmation. Do not add commands for deletion or other destructive operations.
 

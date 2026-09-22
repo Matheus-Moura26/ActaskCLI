@@ -33,10 +33,18 @@ The official source is `https://github.com/Matheus-Moura26/ActaskCLI`. Do not in
 
 ```text
 actask projects list --json [--page <number>] [--page-size <number>]
+actask projects create --name <name> --key <key> [--current-sprint <number>] [--timezone <iana-zone>] --dry-run --json
+actask projects create --name <name> --key <key> [--current-sprint <number>] [--timezone <iana-zone>] --yes --json
 actask projects show <project-id> --json
 ```
 
 The list includes only backend-authorized projects. Project list pagination is local display pagination because the current backend route returns the authorized list without page parameters.
+
+Project creation sends `POST /projects` with `name`, `key`, `current_sprint`
+(default `1`) and `timezone` (default `America/Sao_Paulo`). The CLI normalizes
+the key to uppercase, requires the backend's global `createProjects` permission,
+and never treats local validation as authorization. Use `--dry-run` to inspect
+the normalized payload without a request; use `--yes` to suppress confirmation.
 
 ```text
 actask projects columns <project-id> --json

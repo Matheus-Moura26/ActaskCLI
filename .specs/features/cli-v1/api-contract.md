@@ -10,6 +10,7 @@
 | Login | `POST /auth/login` | `email`, `password` | `session_token`, `user` | `401` invalid credentials; `403` inactive or incomplete account |
 | Identity | `GET /auth/me` | session header | user `id`, `name`, `email`, `is_master`, `is_active`, `permissions` | `401` invalid or missing session |
 | Projects list | `GET /projects` | session header | array of accessible projects | `401` missing session |
+| Project create | `POST /projects` | `name`, `key`, optional `current_sprint`, `timezone` | one created `ProjectOut` | `401`, `403`, `400`/`422` input errors |
 | Project detail | `GET /projects/{project_id}` | session header | one accessible project | `401`, `403`, `404` |
 | Tasks query | `POST /tasks/query` | `project_id`, `page`, `page_size`, optional filters | `items`, `total`, `page`, `page_size`, `query_text`, `applied_order` | `401`, `403`, `400`/`422` input errors |
 

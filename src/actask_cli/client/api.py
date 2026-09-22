@@ -115,6 +115,14 @@ class ActaskApiClient:
             request_id=request_id,
         )
 
+    def create_project(self, payload: Mapping[str, object]) -> ProjectResult:
+        response = self._request("POST", "projects", json_body=payload)
+        request_id = _request_id(response)
+        return ProjectResult(
+            project=Project.from_payload(_payload(response), request_id),
+            request_id=request_id,
+        )
+
     def show_project(self, project_id: str) -> ProjectResult:
         response = self._request("GET", f"task-loading/v1/projects/{project_id}")
         request_id = _request_id(response)
