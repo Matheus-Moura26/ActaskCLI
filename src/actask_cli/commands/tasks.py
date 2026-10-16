@@ -18,6 +18,7 @@ from actask_cli.commands.auth import _active_session, _client, _delete_after_una
 from actask_cli.commands.grouping import app as grouping_app
 from actask_cli.commands.projects import _write_json
 from actask_cli.config.credentials import CredentialStore
+from actask_cli.task_refs import TaskReferenceError, build_task_url, parse_task_reference
 
 app = typer.Typer(help="Read and modify tasks available to the active Actask user.")
 cases_app = typer.Typer(help="List and modify cases linked to a task.")
@@ -67,10 +68,11 @@ def list_tasks(
         "applied_order": list(result.applied_order),
         "request_id": result.request_id,
     }
+    web_url = profile.resolved_web_url
     if json_output:
-        _write_json([task.to_data() for task in result.tasks], meta)
+        _write_json([_task_data(task, web_url) for task in result.tasks], meta)
         return
-    _write_task_list(result.tasks, meta)
+    _write_task_list(result.tasks, meta, web_url)
 
 
 @app.command("show")
@@ -78,27 +80,56 @@ def show_task(
     task_id: str,
     json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
 ) -> None:
-    """Show one backend-authorized task."""
+    """Show one backend-authorized task. TASK_ID accepts a task ID or its web URL."""
 
-    _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     profile, session_token = _active_session()
     credentials = CredentialStore()
     try:
         with _client(profile.server_url, session_token) as client:
-            result = client.show_task(task_id)
+            result = client.show_task(normalized_task_id)
     except UnauthenticatedError as error:
         _delete_after_unauthenticated(credentials, profile)
         _exit_api_error(error)
     except ApiError as error:
         _exit_api_error(error)
 
+    _write_task_result(result.task, result.request_id, json_output, profile.resolved_web_url)
+
+
+@app.command("url")
+def show_task_url(
+    task_id: str,
+    json_output: bool = typer.Option(False, "--json", help="Emit the stable JSON envelope."),
+) -> None:
+    """Print the web link that opens one backend-authorized task."""
+
+    normalized_task_id = _require_task_reference(task_id)
+    profile, session_token = _active_session()
+    web_url = profile.resolved_web_url
+    if web_url is None:
+        _exit(
+            "The web URL for this server is unknown. Run 'actask login' and provide the Web URL.",
+            ExitCode.INVALID_INPUT,
+        )
+    credentials = CredentialStore()
+    try:
+        with _client(profile.server_url, session_token) as client:
+            result = client.show_task(normalized_task_id)
+    except UnauthenticatedError as error:
+        _delete_after_unauthenticated(credentials, profile)
+        _exit_api_error(error)
+    except ApiError as error:
+        _exit_api_error(error)
+
+    url = build_task_url(web_url, result.task.id)
     if json_output:
-        _write_json(result.task.to_data(), {"request_id": result.request_id})
+        _write_json(
+            {"id": result.task.id, "key": result.task.key, "url": url},
+            {"request_id": result.request_id},
+        )
         return
-    typer.echo(
-        f"{result.task.key}\t{result.task.title}\t{result.task.project_id}"
-        f"\t{result.task.id}\t{result.task.assignee_name or ''}"
-    )
+    typer.echo(url)
 
 
 @app.command("create")
@@ -156,7 +187,7 @@ def create_task(
         _exit_api_error(error)
     except ApiError as error:
         _exit_api_error(error)
-    _write_task_result(result.task, result.request_id, json_output)
+    _write_task_result(result.task, result.request_id, json_output, profile.resolved_web_url)
 
 
 @app.command("update")
@@ -185,7 +216,7 @@ def update_task(
 ) -> None:
     """Update one task after confirmation when unassigned or owned by this user."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     if position is not None and column_id is None:
         _exit("--position requires --column-id.", ExitCode.INVALID_INPUT)
     normalized_description = _resolve_description(description, description_file, default=None)
@@ -237,7 +268,7 @@ def update_task(
         _exit_api_error(error)
     except ApiError as error:
         _exit_api_error(error)
-    _write_task_result(result.task, result.request_id, json_output)
+    _write_task_result(result.task, result.request_id, json_output, profile.resolved_web_url)
 
 
 @app.command("promote")
@@ -249,7 +280,7 @@ def promote_subtask(
 ) -> None:
     """Detach a standard subtask and keep it as the same normal task."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     plan: dict[str, object] = {
         "operation": "promote_subtask",
         "task_id": normalized_task_id,
@@ -278,7 +309,7 @@ def promote_subtask(
         _exit_api_error(error)
     except ApiError as error:
         _exit_api_error(error)
-    _write_task_result(result.task, result.request_id, json_output)
+    _write_task_result(result.task, result.request_id, json_output, profile.resolved_web_url)
 
 
 @comments_app.command("list")
@@ -288,7 +319,7 @@ def list_comments(
 ) -> None:
     """List the comments linked to one backend-authorized task."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     profile, session_token = _active_session()
     credentials = CredentialStore()
     try:
@@ -339,7 +370,7 @@ def create_comment(
 ) -> None:
     """Create a comment and optional user mentions after confirmation."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     payload: dict[str, object] = {
         "content": _require_non_empty(content, "Comment content is required."),
         "mentioned_user_ids": _normalize_user_ids(
@@ -380,7 +411,7 @@ def list_cases(
 ) -> None:
     """List the cases linked to one backend-authorized task."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     profile, session_token = _active_session()
     credentials = CredentialStore()
     try:
@@ -415,7 +446,7 @@ def list_case_fields(
 ) -> None:
     """List the case fields configured for the task's project."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     profile, session_token = _active_session()
     credentials = CredentialStore()
     try:
@@ -473,7 +504,7 @@ def create_case(
 ) -> None:
     """Create a case linked to a task after validation and confirmation."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     normalized_field_values = _parse_json_object(field_values, "--field-values")
     normalized_description = _resolve_description(description, description_file, default="") or ""
     payload = _case_create_payload(
@@ -550,7 +581,7 @@ def update_case(
 ) -> None:
     """Update one case after validation and confirmation."""
 
-    normalized_task_id = _require_non_empty(task_id, "A task ID is required.")
+    normalized_task_id = _require_task_reference(task_id)
     normalized_case_id = _require_non_empty(case_id, "A case ID is required.")
     if person_ids and clear_person_ids:
         _exit(
@@ -885,7 +916,9 @@ def _create_payload(
     if assignee_id is not None:
         payload["assignee_id"] = _require_non_empty(assignee_id, "An assignee ID cannot be empty.")
     if parent_id is not None:
-        payload["parent_id"] = _require_non_empty(parent_id, "A parent task ID cannot be empty.")
+        payload["parent_id"] = _require_task_reference(
+            parent_id, "A parent task ID cannot be empty."
+        )
     return payload
 
 
@@ -957,13 +990,30 @@ def _write_cancelled(json_output: bool) -> None:
     typer.echo("Cancelled.")
 
 
-def _write_task_result(task: Task, request_id: str | None, json_output: bool) -> None:
+def _write_task_result(
+    task: Task,
+    request_id: str | None,
+    json_output: bool,
+    web_url: str | None,
+) -> None:
     if json_output:
-        _write_json(task.to_data(), {"request_id": request_id})
+        _write_json(_task_data(task, web_url), {"request_id": request_id})
         return
-    typer.echo(
+    typer.echo(_task_human_line(task, web_url))
+
+
+def _task_url(task: Task, web_url: str | None) -> str | None:
+    return None if web_url is None else build_task_url(web_url, task.id)
+
+
+def _task_data(task: Task, web_url: str | None) -> dict[str, object]:
+    return {**task.to_data(), "url": _task_url(task, web_url)}
+
+
+def _task_human_line(task: Task, web_url: str | None) -> str:
+    return (
         f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}"
-        f"\t{task.assignee_name or ''}"
+        f"\t{task.assignee_name or ''}\t{_task_url(task, web_url) or ''}"
     )
 
 
@@ -993,12 +1043,23 @@ def _require_non_empty(value: str, message: str) -> str:
     return value
 
 
-def _write_task_list(tasks: tuple[Task, ...], meta: dict[str, object]) -> None:
+def _require_task_reference(value: str, message: str = "A task ID is required.") -> str:
+    """Accept a task ID or its web URL and return the task ID."""
+
+    _require_non_empty(value, message)
+    try:
+        return parse_task_reference(value)
+    except TaskReferenceError as error:
+        _exit(str(error), ExitCode.INVALID_INPUT)
+
+
+def _write_task_list(
+    tasks: tuple[Task, ...],
+    meta: dict[str, object],
+    web_url: str | None,
+) -> None:
     for task in tasks:
-        typer.echo(
-            f"{task.key}\t{task.title}\t{task.project_id}\t{task.id}"
-            f"\t{task.assignee_name or ''}"
-        )
+        typer.echo(_task_human_line(task, web_url))
     typer.echo(f"Page {meta['page']} of {meta['total']} tasks.")
 
 

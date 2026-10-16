@@ -20,6 +20,7 @@ from actask_cli.client.models import (
 from actask_cli.commands.auth import _active_session, _client, _delete_after_unauthenticated
 from actask_cli.commands.projects import _write_json
 from actask_cli.config.credentials import CredentialStore
+from actask_cli.task_refs import TaskReferenceError, parse_task_reference
 
 app = typer.Typer(
     help="Group root tasks under one visible parent task and manage the grouping log."
@@ -171,7 +172,9 @@ def list_grouped_children(
 ) -> None:
     """List tasks hidden in a grouping parent's Agrupadas section."""
 
-    normalized_parent_id = _require_non_empty(parent_task_id, "A parent task ID is required.")
+    normalized_parent_id = _require_task_reference(
+        parent_task_id, "A parent task ID is required."
+    )
     profile, session_token = _active_session()
     credentials = CredentialStore()
     try:
@@ -329,12 +332,15 @@ def _grouping_payload(
     idempotency_key: str | None,
 ) -> dict[str, object]:
     normalized_project_id = _require_non_empty(project_id, "A project ID is required.")
-    normalized_parent_id = _require_non_empty(parent_task_id, "A parent task ID is required.")
+    normalized_parent_id = _require_task_reference(
+        parent_task_id, "A parent task ID is required."
+    )
     if not child_ids:
         _exit("Provide at least one --child task ID.", ExitCode.INVALID_INPUT)
 
     normalized_child_ids = [
-        _require_non_empty(child_id, "A child task ID cannot be empty.") for child_id in child_ids
+        _require_task_reference(child_id, "A child task ID cannot be empty.")
+        for child_id in child_ids
     ]
     if len(normalized_child_ids) != len(set(normalized_child_ids)):
         _exit("The same child task ID cannot be repeated.", ExitCode.INVALID_INPUT)
@@ -613,6 +619,16 @@ def _require_non_empty(value: str, message: str) -> str:
     if not value.strip():
         _exit(message, ExitCode.INVALID_INPUT)
     return value.strip()
+
+
+def _require_task_reference(value: str, message: str) -> str:
+    """Accept a task ID, public key or web URL and return the ID or key."""
+
+    _require_non_empty(value, message)
+    try:
+        return parse_task_reference(value)
+    except TaskReferenceError as error:
+        _exit(str(error), ExitCode.INVALID_INPUT)
 
 
 def _exit_api_error(error: ApiError) -> NoReturn:

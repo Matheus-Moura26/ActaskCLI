@@ -23,7 +23,10 @@ from actask_cli.commands import tasks
 from actask_cli.config.profiles import ServerProfile
 from actask_cli.main import app
 
-PROFILE = ServerProfile.create("https://actask.example.test", "member@example.test")
+PROFILE = ServerProfile.create(
+    "https://actask.example.test", "member@example.test", "https://app.example.test"
+)
+TASK_URL = "https://app.example.test/tasks/all?task=task-1"
 TASK = Task(
     id="task-1",
     key="EX-1",
@@ -264,7 +267,9 @@ def test_tasks_list_uses_backend_filters_and_has_equivalent_json(monkeypatch) ->
     json_result = runner.invoke(app, ["tasks", "list", "--project", "project-1", "--json"])
 
     assert human.exit_code == 0
-    assert human.output == "EX-1\tExample task\tproject-1\ttask-1\t\nPage 2 of 1 tasks.\n"
+    assert human.output == (
+        f"EX-1\tExample task\tproject-1\ttask-1\t\t{TASK_URL}\nPage 2 of 1 tasks.\n"
+    )
     assert client.payloads == [
         {
             "project_id": "project-1",
@@ -276,7 +281,7 @@ def test_tasks_list_uses_backend_filters_and_has_equivalent_json(monkeypatch) ->
         {"project_id": "project-1", "page": 1, "page_size": 25},
     ]
     assert json.loads(json_result.output) == {
-        "data": [TASK.to_data()],
+        "data": [{**TASK.to_data(), "url": TASK_URL}],
         "error": None,
         "meta": {
             "applied_order": [],
@@ -340,13 +345,152 @@ def test_tasks_show_has_equivalent_human_and_json_output(monkeypatch) -> None:
     assert human.output == (
         f"{payload['data']['key']}\t{payload['data']['title']}"
         f"\t{payload['data']['project_id']}\t{payload['data']['id']}"
-        f"\t{payload['data']['assignee_name'] or ''}\n"
+        f"\t{payload['data']['assignee_name'] or ''}\t{payload['data']['url']}\n"
     )
     assert payload == {
-        "data": TASK.to_data(),
+        "data": {**TASK.to_data(), "url": TASK_URL},
         "error": None,
         "meta": {"request_id": "req-task"},
     }
+
+
+def test_task_commands_accept_web_url_in_place_of_task_id(monkeypatch) -> None:
+    client = FakeClient(task_parent_id="parent-1")
+    _install_fakes(monkeypatch, client)
+    shown: list[str] = []
+    original_show_task = client.show_task
+
+    def recording_show_task(task_id: str) -> TaskResult:
+        shown.append(task_id)
+        return original_show_task(task_id)
+
+    monkeypatch.setattr(client, "show_task", recording_show_task)
+    url = "https://actask.bluefronte.com/tasks/all?task=task-1&comment=comment-1"
+
+    show = runner.invoke(app, ["tasks", "show", url])
+    promote = runner.invoke(app, ["tasks", "promote", url, "--yes"])
+    dry_run = runner.invoke(
+        app,
+        [
+            "tasks",
+            "create",
+            "--project",
+            "project-1",
+            "--title",
+            "Child",
+            "--sprint",
+            "1",
+            "--parent-id",
+            url,
+            "--dry-run",
+            "--json",
+        ],
+    )
+
+    assert show.exit_code == 0
+    assert promote.exit_code == 0
+    assert shown == ["task-1", "task-1"]
+    assert client.promote_calls == ["task-1"]
+    assert json.loads(dry_run.output)["data"]["parent_id"] == "task-1"
+
+
+def test_task_writes_and_task_children_accept_web_url(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+    calls: list[tuple[str, str]] = []
+    for method_name in (
+        "show_task",
+        "update_task",
+        "list_comments",
+        "create_comment",
+        "create_case",
+        "update_case",
+    ):
+        original = getattr(client, method_name)
+
+        def recorder(task_id: str, *args: object, _name=method_name, _original=original):
+            calls.append((_name, task_id))
+            return _original(task_id, *args)
+
+        monkeypatch.setattr(client, method_name, recorder)
+    url = "https://actaskstage.bluefronte.com/tasks/all?task=task-1"
+
+    results = [
+        runner.invoke(app, ["tasks", "update", url, "--title", "New", "--yes"]),
+        runner.invoke(app, ["tasks", "comments", "list", url]),
+        runner.invoke(app, ["tasks", "comments", "create", url, "--content", "Hi", "--yes"]),
+        runner.invoke(app, ["tasks", "cases", "list", url]),
+        runner.invoke(app, ["tasks", "cases", "fields", url]),
+        runner.invoke(
+            app,
+            [
+                "tasks",
+                "cases",
+                "create",
+                url,
+                "--description",
+                "Case",
+                "--field-values",
+                '{"field-text": "x"}',
+                "--yes",
+            ],
+        ),
+        runner.invoke(
+            app, ["tasks", "cases", "update", url, "case-1", "--motivo", "Fixed", "--yes"]
+        ),
+    ]
+
+    assert [result.exit_code for result in results] == [0] * len(results)
+    assert {name for name, _ in calls} == {
+        "show_task",
+        "update_task",
+        "list_comments",
+        "create_comment",
+        "create_case",
+        "update_case",
+    }
+    assert {task_id for _, task_id in calls} == {"task-1"}
+
+
+def test_task_commands_reject_web_url_without_task_before_request(monkeypatch) -> None:
+    client = FakeClient(foreign_task=True)
+    _install_fakes(monkeypatch, client)
+
+    result = runner.invoke(app, ["tasks", "show", "https://actask.bluefronte.com/tasks/all"])
+
+    assert result.exit_code == 2
+    assert result.stderr == "The task URL does not contain the 'task' parameter.\n"
+
+
+def test_tasks_url_prints_web_link_for_id_or_url(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    human = runner.invoke(app, ["tasks", "url", "task-1"])
+    json_result = runner.invoke(app, ["tasks", "url", TASK_URL, "--json"])
+
+    assert human.exit_code == 0
+    assert human.output == f"{TASK_URL}\n"
+    assert json.loads(json_result.output) == {
+        "data": {"id": "task-1", "key": "EX-1", "url": TASK_URL},
+        "error": None,
+        "meta": {"request_id": "req-task"},
+    }
+
+
+def test_tasks_url_requires_known_web_url_before_request(monkeypatch) -> None:
+    client = FakeClient(foreign_task=True)
+    _install_fakes(monkeypatch, client)
+    unknown = ServerProfile.create("https://api.example.test", "member@example.test")
+    monkeypatch.setattr(tasks, "_active_session", lambda: (unknown, "<redacted-session-token>"))
+
+    url_result = runner.invoke(app, ["tasks", "url", "task-1"])
+    monkeypatch.setattr(client, "foreign_task", False)
+    show_result = runner.invoke(app, ["tasks", "show", "task-1", "--json"])
+
+    assert url_result.exit_code == 2
+    assert "Run 'actask login' and provide the Web URL." in url_result.stderr
+    assert json.loads(show_result.output)["data"]["url"] is None
 
 
 def test_tasks_list_rejects_invalid_filter_before_request(monkeypatch) -> None:
@@ -391,7 +535,7 @@ def test_tasks_create_sends_normalized_payload_after_confirmation(monkeypatch) -
         "priority": "normal",
         "type": "task",
     }
-    assert result.output == "EX-1\tExample task\tproject-1\ttask-1\t\n"
+    assert result.output == f"EX-1\tExample task\tproject-1\ttask-1\t\t{TASK_URL}\n"
 
 
 def test_tasks_create_reads_multiline_description_file(tmp_path) -> None:
@@ -483,7 +627,7 @@ def test_tasks_show_includes_assignee_name_in_human_output(monkeypatch) -> None:
     result = runner.invoke(app, ["tasks", "show", "task-1"])
 
     assert result.exit_code == 0
-    assert result.output == "EX-1\tExample task\tproject-1\ttask-1\tOther User\n"
+    assert result.output == f"EX-1\tExample task\tproject-1\ttask-1\tOther User\t{TASK_URL}\n"
 
 
 def test_tasks_create_rejects_invalid_input_without_request(monkeypatch) -> None:
@@ -710,6 +854,7 @@ def test_tasks_promote_reads_responsibility_and_uses_official_command(monkeypatc
             **TASK.to_data(),
             "parent_id": None,
             "custom_subtask_definition_id": None,
+            "url": TASK_URL,
         },
         "error": None,
         "meta": {"request_id": "req-promote"},

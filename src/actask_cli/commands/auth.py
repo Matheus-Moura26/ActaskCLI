@@ -8,7 +8,14 @@ import typer
 from actask_cli.client.api import ActaskApiClient
 from actask_cli.client.errors import ApiError, ExitCode, UnauthenticatedError
 from actask_cli.config.credentials import CredentialStore, CredentialStoreError
-from actask_cli.config.profiles import DEFAULT_SERVER_URL, ProfileError, ProfileStore, ServerProfile
+from actask_cli.config.profiles import (
+    DEFAULT_SERVER_URL,
+    ProfileError,
+    ProfileStore,
+    ServerProfile,
+    derive_web_url,
+    normalize_server_url,
+)
 
 app = typer.Typer(help="Authenticate this CLI with Actask.")
 
@@ -30,10 +37,18 @@ def login() -> None:
     """Create a session for an Actask server profile."""
 
     server_url = typer.prompt("Server URL", default=DEFAULT_SERVER_URL)
+    web_url: str | None = None
+    if derive_web_url(server_url) is None:
+        saved_web_url = _saved_web_url(server_url)
+        web_url = typer.prompt(
+            "Web URL for task links (optional)",
+            default=saved_web_url or "",
+            show_default=saved_web_url is not None,
+        )
     email = typer.prompt("Email")
     password = typer.prompt("Password", hide_input=True)
     try:
-        profile = ServerProfile.create(server_url, email)
+        profile = ServerProfile.create(server_url, email, web_url)
     except ProfileError as error:
         _exit(str(error), ExitCode.INVALID_INPUT)
 
@@ -124,6 +139,19 @@ def _active_session() -> tuple[ServerProfile, str]:
     if session_token is None:
         _exit_not_authenticated()
     return profile, session_token
+
+
+def _saved_web_url(server_url: str) -> str | None:
+    """Return the Web URL saved for the active profile on this server, if any."""
+
+    try:
+        active = _profile_store().active()
+        normalized_server_url = normalize_server_url(server_url)
+    except ProfileError:
+        return None
+    if active is None or active.server_url != normalized_server_url:
+        return None
+    return active.web_url
 
 
 def _delete_after_unauthenticated(credentials: CredentialStore, profile: ServerProfile) -> None:

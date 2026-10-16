@@ -84,6 +84,12 @@
 
 **Reason:** O backend ja cria o projeto, associa o criador como administrador e provisiona colunas e campos padrao. Um adaptador tipado na CLI entrega a capacidade sem duplicar essa logica ou transformar a verificacao local em autorizacao.
 
+### AD-016 - URL web da task como referencia e como saida
+
+**Decision:** Todo argumento de task aceita a URL web `https://<host-web>/tasks/all?task=<task-id>`; a CLI usa o parametro `task` como ID sem validar o host. O novo `actask tasks url` e o campo `url` nas saidas de task montam o mesmo formato do front e do redirect do backend. A URL web e derivada para os servidores oficiais (`actaskapi<env>` -> `actask<env>`) e, para outros servidores, informada opcionalmente no `login` e salva no perfil sem mudar a chave da credencial. Na saida humana, `url` entra como ultima coluna.
+
+**Reason:** O link do front sempre usa o UUID da task, entao ele pode ser convertido localmente sem nova rota no backend. Nao validar o host evita quebrar ambientes de stage/dev e nao enfraquece a seguranca, porque o backend autoriza cada leitura e escrita. Anexar a coluna ao final preserva automacoes que leem as colunas existentes por posicao.
+
 ## Validation Remediation
 
 ### 2026-07-10 - AC-05, AC-06 e evidencia direta de autorizacao
@@ -123,11 +129,11 @@
 
 ## Handoff
 
-- **Feature**: project creation in the CLI
-- **Phase / Task**: add `actask projects create`
-- **Completed**: Added the typed `POST /projects` client method, guarded command with `--dry-run`/confirmation/`--yes`, uppercase key normalization, human/JSON output, unit coverage, synchronized README/API contract/authorization matrix/Skill guidance, and independent validation evidence.
+- **Feature**: task URLs in the CLI (`.specs/features/task-url-cli/`)
+- **Phase / Task**: accept task web URLs as task references and expose task links
+- **Completed**: Added `task_refs` parsing/link building, optional profile `web_url` with official-server derivation, Web URL prompt on `login` for custom servers, URL input on every task argument, `actask tasks url`, `url` in task JSON and human output, Skill/reference/README guidance, version `1.2.0` and release notes.
 - **In-progress** (file:line): none
-- **Next step**: Independent review of the final diff, then release/install only when authorized.
+- **Next step**: Manual check against stage, then release/install only when authorized.
 - **Blockers**: none.
 - **Uncommitted files**: none.
-- **Branch**: `codex/projects-create-cli`
+- **Branch**: `codex/task-url-cli`

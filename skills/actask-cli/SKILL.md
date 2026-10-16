@@ -1,6 +1,6 @@
 ---
 name: actask-cli
-description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, create a project or create/update a task safely, promote a standard subtask, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
+description: Operate Actask projects and tasks through the public Actask CLI with individual user authentication and backend-enforced permissions. Use when an AI agent needs to inspect projects or tasks, open a task from its Actask web URL or report a task's link, create a project or create/update a task safely, promote a standard subtask, group or ungroup tasks, interpret CLI JSON output, or stop safely on authentication, authorization, or destructive-action ambiguity.
 ---
 
 # Actask CLI
@@ -28,6 +28,14 @@ Read [references/commands.md](references/commands.md) before choosing command fl
 4. Run `actask tasks show <task-id> --json` to inspect one task.
 5. Summarize only returned data. Do not infer access to projects or tasks that are not returned.
 
+## Task Links
+
+Every `<task-id>` argument also accepts the task's web URL, in the format `https://<web-host>/tasks/all?task=<task-id>`. Pass a URL that the user pasted directly to the command; the CLI extracts the task ID and the backend still authorizes the read or write. Do not derive a task ID from a URL by hand, and do not open the URL in a browser.
+
+1. When the user pastes an Actask task URL, run `actask tasks show <task-url> --json` and continue with `data.id`.
+2. When the user asks for a task's link, run `actask tasks url <task-id> --json` and return `data.url`. Task responses from `tasks show`, `tasks list`, `tasks create`, `tasks update` and `tasks promote` also include `url`.
+3. If `url` is `null` or `tasks url` reports that the web URL is unknown, ask the user to run `actask login` themselves and provide the Web URL. Never invent a link.
+
 ## Project creation
 
 Create a project only when the user explicitly authorizes that exact project
@@ -50,7 +58,7 @@ Task responses preserve `assignee_id` as the stable identifier and expose `assig
 
 1. For one task, run `actask tasks show <task-id> --json` and read `data.assignee_name`.
 2. For a task list, run `actask tasks list --project <project-id> --json` and read `assignee_name` from each object in `data`.
-3. Prefer `--json` for automation. In human-readable task output, the fifth tab-separated field is `assignee_name`; an empty field means that the task is unassigned.
+3. Prefer `--json` for automation. In human-readable task output, the fifth tab-separated field is `assignee_name`; an empty field means that the task is unassigned. The sixth field is the task `url`.
 4. Never derive a person's name from `assignee_id` or make a separate user lookup when `assignee_name` is present in the task response.
 
 ## Multiline Descriptions
