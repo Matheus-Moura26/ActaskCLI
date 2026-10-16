@@ -8,7 +8,13 @@ import typer
 from actask_cli.client.api import ActaskApiClient
 from actask_cli.client.errors import ApiError, ExitCode, UnauthenticatedError
 from actask_cli.config.credentials import CredentialStore, CredentialStoreError
-from actask_cli.config.profiles import DEFAULT_SERVER_URL, ProfileError, ProfileStore, ServerProfile
+from actask_cli.config.profiles import (
+    DEFAULT_SERVER_URL,
+    ProfileError,
+    ProfileStore,
+    ServerProfile,
+    derive_web_url,
+)
 
 app = typer.Typer(help="Authenticate this CLI with Actask.")
 
@@ -30,10 +36,15 @@ def login() -> None:
     """Create a session for an Actask server profile."""
 
     server_url = typer.prompt("Server URL", default=DEFAULT_SERVER_URL)
+    web_url: str | None = None
+    if derive_web_url(server_url) is None:
+        web_url = typer.prompt(
+            "Web URL for task links (optional)", default="", show_default=False
+        )
     email = typer.prompt("Email")
     password = typer.prompt("Password", hide_input=True)
     try:
-        profile = ServerProfile.create(server_url, email)
+        profile = ServerProfile.create(server_url, email, web_url)
     except ProfileError as error:
         _exit(str(error), ExitCode.INVALID_INPUT)
 

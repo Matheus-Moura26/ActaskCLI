@@ -118,6 +118,28 @@ def test_login_uses_default_server_and_hides_password(monkeypatch) -> None:
     assert SESSION_TOKEN not in result.stderr
 
 
+def test_login_asks_web_url_only_for_servers_without_a_known_web_app(monkeypatch) -> None:
+    profiles = FakeProfileStore()
+    credentials = FakeCredentialStore()
+    client = FakeClient(login_result=LoginResult(SESSION_TOKEN, USER, "req-login"))
+    _install_fakes(monkeypatch, profiles, credentials, client)
+
+    result = runner.invoke(
+        app,
+        ["login"],
+        input=(
+            "https://api.example.test\nhttps://app.example.test/\n"
+            "member@example.test\n<redacted-password>\n"
+        ),
+    )
+
+    assert result.exit_code == 0
+    assert "Web URL for task links (optional): https://app.example.test/\n" in result.output
+    assert profiles.active_profile == ServerProfile.create(
+        "https://api.example.test", "member@example.test", "https://app.example.test"
+    )
+
+
 def test_whoami_has_equivalent_human_and_json_output(monkeypatch) -> None:
     profiles = FakeProfileStore(PROFILE)
     credentials = FakeCredentialStore(SESSION_TOKEN)
@@ -173,7 +195,7 @@ def test_revoked_session_is_removed_and_can_be_replaced_by_login(monkeypatch) ->
     login_result = runner.invoke(
         app,
         ["login"],
-        input="https://actask.example.test\nmember@example.test\n<redacted-password>\n",
+        input="https://actask.example.test\n\nmember@example.test\n<redacted-password>\n",
     )
 
     assert revoked_result.exit_code == 3
