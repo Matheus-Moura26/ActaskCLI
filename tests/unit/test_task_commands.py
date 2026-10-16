@@ -394,6 +394,64 @@ def test_task_commands_accept_web_url_in_place_of_task_id(monkeypatch) -> None:
     assert json.loads(dry_run.output)["data"]["parent_id"] == "task-1"
 
 
+def test_task_writes_and_task_children_accept_web_url(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+    calls: list[tuple[str, str]] = []
+    for method_name in (
+        "show_task",
+        "update_task",
+        "list_comments",
+        "create_comment",
+        "create_case",
+        "update_case",
+    ):
+        original = getattr(client, method_name)
+
+        def recorder(task_id: str, *args: object, _name=method_name, _original=original):
+            calls.append((_name, task_id))
+            return _original(task_id, *args)
+
+        monkeypatch.setattr(client, method_name, recorder)
+    url = "https://actaskstage.bluefronte.com/tasks/all?task=task-1"
+
+    results = [
+        runner.invoke(app, ["tasks", "update", url, "--title", "New", "--yes"]),
+        runner.invoke(app, ["tasks", "comments", "list", url]),
+        runner.invoke(app, ["tasks", "comments", "create", url, "--content", "Hi", "--yes"]),
+        runner.invoke(app, ["tasks", "cases", "list", url]),
+        runner.invoke(app, ["tasks", "cases", "fields", url]),
+        runner.invoke(
+            app,
+            [
+                "tasks",
+                "cases",
+                "create",
+                url,
+                "--description",
+                "Case",
+                "--field-values",
+                '{"field-text": "x"}',
+                "--yes",
+            ],
+        ),
+        runner.invoke(
+            app, ["tasks", "cases", "update", url, "case-1", "--motivo", "Fixed", "--yes"]
+        ),
+    ]
+
+    assert [result.exit_code for result in results] == [0] * len(results)
+    assert {name for name, _ in calls} == {
+        "show_task",
+        "update_task",
+        "list_comments",
+        "create_comment",
+        "create_case",
+        "update_case",
+    }
+    assert {task_id for _, task_id in calls} == {"task-1"}
+
+
 def test_task_commands_reject_web_url_without_task_before_request(monkeypatch) -> None:
     client = FakeClient(foreign_task=True)
     _install_fakes(monkeypatch, client)

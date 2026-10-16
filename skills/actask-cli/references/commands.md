@@ -74,7 +74,7 @@ Use filters exactly as `field:operator:value`. A `403` means access was denied; 
 
 ### Task links
 
-Every `<task-id>`, `<parent-task-id>`, `--parent-id` of `tasks create`, and the grouping `--parent`/`--child` options also accept the task web URL `https://<web-host>/tasks/all?task=<task-id>`. Other query parameters such as `comment` are ignored. A URL without a `task` parameter exits with code `2` before any request.
+Every `<task-id>`, `<parent-task-id>`, `--parent-id` of `tasks create`, and the grouping `--parent`/`--child` options also accept the task web URL `https://<web-host>/tasks/all?task=<task-id>`. Other query parameters such as `comment` are ignored. A URL without a `task` parameter, or whose `task` value is not a plain ID (letters, digits, `-` and `_`), exits with code `2` before any request.
 
 ```text
 actask tasks show "https://actask.bluefronte.com/tasks/all?task=<task-id>" --json

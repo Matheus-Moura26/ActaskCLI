@@ -340,6 +340,33 @@ def test_group_accepts_web_urls_and_detects_url_id_duplicates(monkeypatch) -> No
     assert duplicate.stderr == "The parent task cannot also be a child task.\n"
 
 
+def test_children_accepts_parent_web_url(monkeypatch) -> None:
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+    parents: list[str] = []
+    original = client.list_grouped_tasks
+
+    def recorder(parent_task_id: str, *, page: int = 1, page_size: int = 100):
+        parents.append(parent_task_id)
+        return original(parent_task_id, page=page, page_size=page_size)
+
+    monkeypatch.setattr(client, "list_grouped_tasks", recorder)
+
+    result = runner.invoke(
+        app,
+        [
+            "tasks",
+            "grouping",
+            "children",
+            "https://actask.bluefronte.com/tasks/all?task=parent-1",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert parents == ["parent-1"]
+
+
 def test_group_resolves_exact_public_keys_before_posting_ids(monkeypatch) -> None:
     client = KeyReferenceClient()
     _install_fakes(monkeypatch, client)

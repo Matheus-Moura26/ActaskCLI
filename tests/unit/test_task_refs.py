@@ -22,9 +22,26 @@ def test_parse_task_reference_extracts_task_id_from_web_urls(reference: str) -> 
 
 
 def test_parse_task_reference_decodes_percent_encoded_task_id() -> None:
-    url = "https://actask.bluefronte.com/tasks/all?task=task%2F1"
+    url = "https://actask.bluefronte.com/tasks/all?task=task%2D1"
 
-    assert parse_task_reference(url) == "task/1"
+    assert parse_task_reference(url) == "task-1"
+
+
+def test_parse_task_reference_uses_the_first_task_parameter() -> None:
+    url = "https://actask.bluefronte.com/tasks/all?task=task-1&task=task-2"
+
+    assert parse_task_reference(url) == "task-1"
+
+
+@pytest.mark.parametrize(
+    "task_value",
+    ["..%2F..%2Fusers%2Fme", "a%3Fx%3D1", "a%23b", "a%2520b", "a%20b"],
+)
+def test_parse_task_reference_rejects_ids_that_would_change_the_api_path(
+    task_value: str,
+) -> None:
+    with pytest.raises(TaskReferenceError, match="invalid task ID"):
+        parse_task_reference(f"https://actask.bluefronte.com/tasks/all?task={task_value}")
 
 
 @pytest.mark.parametrize("reference", [TASK_ID, f"  {TASK_ID} ", "MMS-152"])
@@ -38,7 +55,10 @@ def test_parse_task_reference_keeps_plain_ids_and_keys(reference: str) -> None:
         ("https://actask.bluefronte.com/tasks/all", "'task' parameter"),
         ("https://actask.bluefronte.com/tasks/all?task=", "'task' parameter"),
         ("https://actask.bluefronte.com/projects?task=task-1", "not an Actask task URL"),
+        ("https://actask.bluefronte.com/tasksfoo?task=task-1", "not an Actask task URL"),
         ("ftp://actask.bluefronte.com/tasks/all?task=task-1", "not an Actask task URL"),
+        ("actask.bluefronte.com/tasks/all", "'task' parameter"),
+        ("actask.bluefronte.com/tasks/all?comment=1", "'task' parameter"),
     ],
 )
 def test_parse_task_reference_rejects_urls_without_a_task(reference: str, message: str) -> None:

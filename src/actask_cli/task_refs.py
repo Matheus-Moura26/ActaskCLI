@@ -6,6 +6,7 @@ import re
 from urllib.parse import parse_qs, quote, urlsplit
 
 _SCHEME_PATTERN = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
+_TASK_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 
 
 class TaskReferenceError(ValueError):
@@ -26,11 +27,16 @@ def parse_task_reference(value: str) -> str:
 
     url = reference if _SCHEME_PATTERN.match(reference) else f"https://{reference}"
     parsed = urlsplit(url)
-    if parsed.scheme.lower() not in {"http", "https"} or not parsed.path.startswith("/tasks"):
+    is_task_path = parsed.path == "/tasks" or parsed.path.startswith("/tasks/")
+    if parsed.scheme.lower() not in {"http", "https"} or not is_task_path:
         raise TaskReferenceError("The URL is not an Actask task URL.")
     task_ids = [item.strip() for item in parse_qs(parsed.query).get("task", [])]
     if not task_ids or not task_ids[0]:
         raise TaskReferenceError("The task URL does not contain the 'task' parameter.")
+    # The ID becomes an API path segment, so a decoded value must not be able to
+    # change the request path or query (for example "../" or "?").
+    if not _TASK_ID_PATTERN.fullmatch(task_ids[0]):
+        raise TaskReferenceError("The task URL contains an invalid task ID.")
     return task_ids[0]
 
 
@@ -43,4 +49,4 @@ def build_task_url(web_url: str, task_id: str) -> str:
 def _looks_like_url(reference: str) -> bool:
     if _SCHEME_PATTERN.match(reference):
         return True
-    return "/tasks" in reference and "task=" in reference
+    return "/tasks" in reference

@@ -57,7 +57,9 @@ def test_profile_store_persists_explicit_web_url_and_loads_legacy_profiles(tmp_p
     custom = ServerProfile.create(
         "https://api.example.test", "a@b.test", "https://app.example.test/"
     )
-    profiles.save_active(custom)
+    profiles.save_active(
+        ServerProfile.create("https://api.example.test", "a@b.test", "https://old.example.test")
+    )
     profiles.save_active(custom)
 
     assert profiles.active() == custom

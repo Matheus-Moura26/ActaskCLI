@@ -5,7 +5,9 @@
 - Todo argumento de task (`tasks show`, `update`, `promote`, `comments`, `cases`, `create --parent-id` e `grouping --parent`/`--child`/`children`) aceita a URL web da task (`/tasks/all?task=<task-id>`), alem do ID.
 - Novo `actask tasks url <task-id-ou-url> [--json]`, que imprime o link da task.
 - O JSON de `tasks show`, `list`, `create`, `update` e `promote` inclui `url`; a saida humana ganha a URL como ultima coluna.
-- A URL web e derivada automaticamente para os servidores oficiais; para outros servidores, `actask login` pergunta a `Web URL for task links`.
+- A URL web e derivada automaticamente para os servidores oficiais; para outros servidores, `actask login` pergunta a `Web URL for task links` logo apos o Server URL (scripts que alimentam o login de um servidor proprio precisam de uma linha a mais) e reaproveita a URL salva como padrao.
+- Por seguranca, uma URL cujo `task` decodificado contenha caracteres que alterariam a rota da API (`/`, `?`, `#`, `%`, espacos) e recusada com codigo `2`.
+- Tambem entram nesta versao, ainda nao publicados em release: agrupamento de tasks (`tasks grouping`), `tasks promote` e `projects create`.
 - A Skill `actask-cli` orienta a passar URLs coladas diretamente para a CLI e a responder pedidos de link com `tasks url`.
 
 ## Atualizacao

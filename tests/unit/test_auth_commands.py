@@ -139,6 +139,17 @@ def test_login_asks_web_url_only_for_servers_without_a_known_web_app(monkeypatch
         "https://api.example.test", "member@example.test", "https://app.example.test"
     )
 
+    relogin = runner.invoke(
+        app,
+        ["login"],
+        input="https://api.example.test\n\nmember@example.test\n<redacted-password>\n",
+    )
+
+    assert relogin.exit_code == 0
+    assert "Web URL for task links (optional) [https://app.example.test]: \n" in relogin.output
+    assert profiles.active_profile is not None
+    assert profiles.active_profile.web_url == "https://app.example.test"
+
 
 def test_whoami_has_equivalent_human_and_json_output(monkeypatch) -> None:
     profiles = FakeProfileStore(PROFILE)
