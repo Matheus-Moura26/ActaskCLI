@@ -308,6 +308,38 @@ def test_group_rejects_duplicate_or_parent_child_before_network(monkeypatch) -> 
     assert result.stderr == "The same child task ID cannot be repeated.\n"
 
 
+def test_group_accepts_web_urls_and_detects_url_id_duplicates(monkeypatch) -> None:
+    def unexpected_network(*args: object, **kwargs: object) -> object:
+        raise AssertionError("dry-run and invalid input must not construct a network client")
+
+    monkeypatch.setattr(grouping, "_client", unexpected_network)
+    base = "https://actask.bluefronte.com/tasks/all?task="
+    command = ["tasks", "grouping", "group", "--project", "project-1"]
+
+    dry_run = runner.invoke(
+        app,
+        [
+            *command,
+            "--parent",
+            f"{base}parent-1",
+            "--child",
+            f"{base}child-1",
+            "--dry-run",
+            "--json",
+        ],
+    )
+    duplicate = runner.invoke(
+        app,
+        [*command, "--parent", "parent-1", "--child", f"{base}parent-1"],
+    )
+
+    assert dry_run.exit_code == 0
+    assert json.loads(dry_run.output)["data"]["parent_task_id"] == "parent-1"
+    assert json.loads(dry_run.output)["data"]["task_ids"] == ["child-1"]
+    assert duplicate.exit_code == 2
+    assert duplicate.stderr == "The parent task cannot also be a child task.\n"
+
+
 def test_group_resolves_exact_public_keys_before_posting_ids(monkeypatch) -> None:
     client = KeyReferenceClient()
     _install_fakes(monkeypatch, client)
