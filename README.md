@@ -102,7 +102,7 @@ Nao execute um binario cujo SHA-256 nao corresponda ao checksum publicado.
 
 ```bash
 pipx ensurepath
-pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.1.0"
+pipx install "git+https://github.com/Matheus-Moura26/ActaskCLI.git@v1.2.0"
 actask version
 ```
 
@@ -113,7 +113,7 @@ Abra um novo terminal depois de `pipx ensurepath` para que o `PATH` seja atualiz
 ```bash
 git clone https://github.com/Matheus-Moura26/ActaskCLI.git
 cd ActaskCLI
-git checkout v1.1.0
+git checkout v1.2.0
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
@@ -130,6 +130,20 @@ actask whoami
 ```
 
 `login` usa `https://actaskapi.bluefronte.com` como padrao; pressione Enter no campo Server URL para usa-la. Informe outra URL somente para staging ou ambiente proprio. A senha nao aparece no terminal. A autorizacao de cada comando continua sendo decidida pelo backend; um `403` significa que a conta autenticada nao possui permissao para aquela operacao.
+
+Nos servidores oficiais (`https://actaskapi<ambiente>.<dominio>`), a CLI deriva a URL web usada nos links de task (`https://actask<ambiente>.<dominio>`). Para outro servidor, o `login` tambem pergunta a `Web URL for task links`; deixe vazio para nao gerar links.
+
+### Links de tasks
+
+Todo argumento `<task-id>` aceita tambem a URL da task copiada do Actask, no formato `https://<host-web>/tasks/all?task=<task-id>`:
+
+```bash
+actask tasks show "https://actask.bluefronte.com/tasks/all?task=<task-id>" --json
+actask tasks url <task-id-ou-url>
+actask tasks url <task-id-ou-url> --json
+```
+
+`tasks url` le a task pela rota autorizada e imprime apenas o link. O JSON de `tasks show`, `list`, `create`, `update` e `promote` inclui o campo `url`, e a saida humana ganha a URL como ultima coluna.
 
 ### Criar um projeto
 

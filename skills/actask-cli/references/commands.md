@@ -23,6 +23,8 @@ actask version
 
 `login` is interactive. Its default server is `https://actaskapi.bluefronte.com`; the user can press Enter at Server URL to use it. The user enters the email and hidden password locally. Never provide credentials to the agent or put them in a command argument.
 
+For the official servers (`https://actaskapi<env>.<domain>`), the CLI derives the web app URL used for task links (`https://actask<env>.<domain>`). For any other server, `login` also asks for an optional `Web URL for task links`; leaving it empty disables task links for that profile.
+
 ## Installation for agents and users
 
 Require `actask` to resolve from the system PATH before operating. Use a release binary installed in a system PATH directory, or `pipx ensurepath` followed by `pipx install` for a globally callable per-user command. Do not create a project-local virtual environment for ordinary CLI operation; reserve `.venv` for CLI development and tests.
@@ -58,6 +60,7 @@ Use `columns` to resolve a visual board-column name to its ID. Use `fields` to d
 ```text
 actask tasks list --project <project-id> --json [--page <number>] [--page-size <number>] [--query <text>] [--filter <field:operator:value>]
 actask tasks show <task-id> --json
+actask tasks url <task-id> --json
 actask tasks create --project <project-id> --title <title> --sprint <number> --parent-id <parent-task-id> --dry-run --json
 actask tasks promote <task-id> --dry-run --json
 actask tasks promote <task-id> --yes --json
@@ -68,6 +71,18 @@ actask tasks cases update <task-id> <case-id> --field-values <json-object> --dry
 ```
 
 Use filters exactly as `field:operator:value`. A `403` means access was denied; do not interpret it as an empty result.
+
+### Task links
+
+Every `<task-id>`, `<parent-task-id>`, `--parent-id` of `tasks create`, and the grouping `--parent`/`--child` options also accept the task web URL `https://<web-host>/tasks/all?task=<task-id>`. Other query parameters such as `comment` are ignored. A URL without a `task` parameter exits with code `2` before any request.
+
+```text
+actask tasks show "https://actask.bluefronte.com/tasks/all?task=<task-id>" --json
+actask tasks url <task-id-or-url>
+actask tasks url <task-id-or-url> --json
+```
+
+`tasks url` reads the task through the authorized route and prints only its link. Its JSON `data` is `{"id":"<task-id>","key":"<task-key>","url":"<task-url>"}`. The JSON `data` of `tasks show`, `tasks create`, `tasks update` and `tasks promote`, and each object of `tasks list`, include `url`; it is `null` when the profile has no known web URL. In that case `tasks url` exits with code `2` and asks the user to run `actask login` and provide the Web URL.
 
 For an exact board column, use `--filter column:=:<column-id>`. For an exact configured Status option, use `--filter status:=:<option-value>`. Do not assume that column names, Status options, and `statusCategory` mean the same thing.
 
@@ -82,7 +97,7 @@ actask tasks show <task-id> --json
 actask tasks list --project <project-id> --json
 ```
 
-Read `data.assignee_name` for `tasks show` and `assignee_name` from each object in `data` for `tasks list`. In human-readable output, the columns are `key`, `title`, `project_id`, `task_id`, and `assignee_name`; the final column is empty when there is no assignee.
+Read `data.assignee_name` for `tasks show` and `assignee_name` from each object in `data` for `tasks list`. In human-readable output, the columns are `key`, `title`, `project_id`, `task_id`, `assignee_name`, and `url`; `assignee_name` is empty when there is no assignee and `url` is empty when the web URL is unknown.
 
 ### Multiline descriptions
 

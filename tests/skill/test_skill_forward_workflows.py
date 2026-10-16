@@ -88,6 +88,12 @@ def test_skill_documents_cli_only_and_required_stops() -> None:
     assert "moveTasks" in skill
     assert "tasks grouping undo" in reference
     assert "isGroupingTask:equals:true" in reference
+    assert "actask tasks show <task-url> --json" in skill
+    assert "actask tasks url <task-id> --json" in skill
+    assert "Never invent a link." in skill
+    assert "/tasks/all?task=<task-id>" in reference
+    assert "actask tasks url <task-id-or-url> --json" in reference
+    assert "Web URL for task links" in reference
     assert "<redacted-session-token>" not in skill + reference
     assert "https://github.com/Matheus-Moura26/ActaskCLI" in skill
     assert "SHA256SUMS" in skill
